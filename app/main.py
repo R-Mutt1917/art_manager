@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app.models import *
 from app.database import create_db_and_tables
-from app.routers import obras, tecnicas, exposiciones
+from app.routers import obras, tecnicas, exposiciones, compradores
 from app.core.config import settings
 
 @asynccontextmanager
@@ -31,6 +31,7 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 app.include_router(obras.router)
 app.include_router(tecnicas.router)
 app.include_router(exposiciones.router)
+app.include_router(compradores.router)
 @app.get("/", tags=["Root"])
 def root():
     return {

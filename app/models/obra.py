@@ -35,8 +35,10 @@ class Obra(SQLModel, table=True):
     tecnica_id: Optional[int] = Field(default=None, foreign_key="tecnica.id")
     tecnica: Optional["Tecnica"] = Relationship(back_populates="obras")
     
+    # Relación con Comprador: Una obra puede ser comprada por un comprador
     comprador_id: Optional[int] = Field(default=None, foreign_key="comprador.id")
     comprador: Optional["Comprador"] = Relationship(back_populates="obras")
+    fecha_venta: Optional[date] = Field(default=None)
     
     prestamo: Optional["Prestamo"] = Relationship(back_populates="obra")
     
