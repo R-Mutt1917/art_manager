@@ -10,6 +10,7 @@ class Exposicion(SQLModel, table=True):
     fecha_inicio: date
     fecha_fin: date
     descripcion: Optional[str] = Field(default=None)
+    activa: bool = Field(default=True) # Por si queremos dar de baja una expo
     
     # Relación N:M: Una exposición tiene muchas relaciones con obras
     obras_en_exposicion: List["ObraExposicion"] = Relationship(back_populates="exposicion")
