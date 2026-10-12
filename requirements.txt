@@ -1,0 +1,18 @@
+# Framework principal
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# Base de datos y modelos
+sqlmodel==0.0.22
+
+# Validación y configuración
+pydantic==2.9.0
+pydantic-settings==2.5.0
+python-dotenv==1.0.1
+
+# Manejo de archivos
+python-multipart==0.0.12
+
+# Para el futuro (autenticación, etc.)
+# python-jose[cryptography]==3.3.0
+# passlib[bcrypt]==1.7.4
