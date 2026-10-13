@@ -10,6 +10,8 @@ export interface Obra {
   precio: number | null;
   estado: string;
   imagen_url: string | null;
+  tecnica_id: number | null;
+  notas: string | null;
 }
 
 /**
@@ -27,5 +29,24 @@ export async function getObras(): Promise<Obra[]> {
   } catch (error) {
     console.error("Error al conectar con el backend:", error);
     return []; // Retornamos array vacío para que la UI no se rompa
+  }
+}
+
+/**
+ * Obtiene una obra específica por su ID desde el backend.
+ */
+export async function getObraById(id: number): Promise<Obra | null> {
+  try {
+    const response = await fetch(`${API_URL}/obras/${id}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Error al obtener la obra ${id}:`, error);
+    return null;
   }
 }

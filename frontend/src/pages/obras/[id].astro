@@ -1,0 +1,117 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getObraById } from '../../services/api';
+
+// 1. Obtenemos el ID de la URL (ej: /obras/1 -> id = "1")
+const { id } = Astro.params;
+const obraId = Number(id);
+
+// 2. Buscamos la obra en el backend
+const obra = await getObraById(obraId);
+
+// 3. Si no existe, mostramos una página 404 elegante
+if (!obra) {
+  // Astro permite devolver respuestas HTTP personalizadas
+  return new Response(null, { status: 404 });
+}
+
+// 4. URL de la imagen (con fallback elegante)
+const imageUrl = obra.imagen_url 
+  ? `${import.meta.env.PUBLIC_API_URL}${obra.imagen_url}` 
+  : 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=1200';
+
+// 5. Formateo de precio
+const precioFormateado = obra.precio 
+  ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(obra.precio)
+  : 'Consultar';
+
+// 6. Estado legible
+const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisición' 
+                  : obra.estado === 'vendida' ? 'Obra vendida' 
+                  : obra.estado === 'en_exposicion' ? 'En exposición temporal' 
+                  : 'En préstamo';
+---
+
+<Layout title={obra.titulo} description={`Detalles de la obra ${obra.titulo}`}>
+  
+  <!-- Botón de volver accesible -->
+  <nav class="mb-8" aria-label="Navegación de retorno">
+    <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-2 py-1 -ml-2">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+      Volver al catálogo
+    </a>
+  </nav>
+
+  <article class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
+    
+    <!-- Columna Izquierda: Imagen en grande -->
+    <figure class="relative w-full rounded-2xl overflow-hidden shadow-lg bg-gray-100">
+      {/* Carga prioritaria porque es el elemento principal de la página */}
+      <img 
+        src={imageUrl} 
+        alt={`Vista detallada de la obra de arte: ${obra.titulo}`} 
+        class="w-full h-auto object-cover"
+        loading="eager"
+      />
+      <figcaption class="sr-only">{obra.titulo}</figcaption>
+    </figure>
+
+    <!-- Columna Derecha: Metadatos y detalles -->
+    <div class="flex flex-col">
+      <header class="mb-6">
+        <h1 class="font-serif text-4xl md:text-5xl font-bold text-text-primary mb-3 leading-tight">
+          {obra.titulo}
+        </h1>
+        <p class="text-xl text-text-secondary font-light">
+          {estadoLegible}
+        </p>
+      </header>
+
+      <!-- Lista de definición semántica para metadatos (Mejor para SEO y Accesibilidad) -->
+      <dl class="space-y-4 mb-8">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline border-b border-gray-200 pb-3">
+          <dt class="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-1 sm:mb-0">Año</dt>
+          <dd class="text-lg text-text-primary font-medium">{obra.anio}</dd>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline border-b border-gray-200 pb-3">
+          <dt class="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-1 sm:mb-0">Dimensiones</dt>
+          <dd class="text-lg text-text-primary font-medium">{obra.dimensiones}</dd>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline border-b border-gray-200 pb-3">
+          <dt class="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-1 sm:mb-0">Técnica</dt>
+          <dd class="text-lg text-text-primary font-medium">
+            <!-- Aquí podríamos hacer un join con la técnica si la trajéramos, por ahora mostramos el ID o un placeholder -->
+            {obra.tecnica_id ? `ID Técnica: ${obra.tecnica_id}` : 'No especificada'}
+          </dd>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline pt-2">
+          <dt class="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-1 sm:mb-0">Precio</dt>
+          <dd class="text-2xl font-bold text-accent">{precioFormateado}</dd>
+        </div>
+      </dl>
+
+      {obra.notas && (
+        <div class="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8">
+          <h3 class="font-serif text-lg font-bold text-text-primary mb-2">Notas del curador</h3>
+          <p class="text-text-secondary leading-relaxed italic">"{obra.notas}"</p>
+        </div>
+      )}
+
+      <!-- Call to Action (Placeholder para futura funcionalidad) -->
+      <div class="mt-auto">
+        {obra.estado === 'disponible' ? (
+          <button class="w-full sm:w-auto px-8 py-4 bg-text-primary text-white font-semibold rounded-lg hover:bg-accent transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
+            Consultar por esta obra
+          </button>
+        ) : (
+          <button disabled class="w-full sm:w-auto px-8 py-4 bg-gray-200 text-gray-500 font-semibold rounded-lg cursor-not-allowed">
+            No disponible actualmente
+          </button>
+        )}
+      </div>
+    </div>
+  </article>
+</Layout>
