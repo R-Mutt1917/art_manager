@@ -1,0 +1,44 @@
+# ==========================================
+# ENTORNOS VIRTUALES Y DEPENDENCIAS
+# ==========================================
+backend/venv/
+frontend/node_modules/
+frontend/.next/
+frontend/venv/
+*.egg-info/
+
+# ==========================================
+# BASES DE DATOS Y ARCHIVOS SUBIDOS
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+backend/app/uploads/*
+!backend/app/uploads/.gitkeep
+
+# ==========================================
+# CACHÉ DE PYTHON Y TESTING
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==========================================
+# EDITORES DE CÓDIGO Y SISTEMA
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# LOGS Y ARCHIVOS TEMPORALES
+# ==========================================
+*.log
+.env
+.env.local
