@@ -1,0 +1,50 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Gestor de Obras de Arte profesional" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} | Art Manager</title>
+  </head>
+  <body class="flex flex-col min-h-screen">
+    <!-- Header semántico -->
+    <header class="sticky top-0 z-50 bg-bg-primary/90 backdrop-blur-md border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <a href="/" class="font-serif text-2xl font-bold tracking-tight hover:text-accent transition-colors">
+          Art Manager
+        </a>
+        <nav aria-label="Navegación principal">
+          <ul class="flex gap-6 text-sm font-medium text-text-secondary">
+            <li><a href="/" class="hover:text-text-primary transition-colors">Obras</a></li>
+            <li><a href="/exposiciones" class="hover:text-text-primary transition-colors">Exposiciones</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Main content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <slot />
+    </main>
+
+    <!-- Footer semántico -->
+    <footer class="border-t border-gray-200 py-8 mt-auto">
+      <div class="max-w-7xl mx-auto px-4 text-center text-sm text-text-secondary">
+        <p>&copy; {new Date().getFullYear()} Art Manager. Construido con accesibilidad y propósito.</p>
+      </div>
+    </footer>
+  </body>
+</html>

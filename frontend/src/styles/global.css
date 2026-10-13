@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+/* Importamos fuentes de Google */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap');
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  
+  /* Colores personalizados */
+  --color-bg-primary: #FAFAFA;
+  --color-text-primary: #111111;
+  --color-text-secondary: #555555;
+  --color-accent: #8B5CF6;
+}
+
+body {
+  @apply bg-bg-primary text-text-primary font-sans antialiased;
+}
+
+/* Accesibilidad: foco visible */
+:focus-visible {
+  @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-bg-primary;
+}
