@@ -2,7 +2,9 @@ from typing import Optional, List, TYPE_CHECKING
 from datetime import datetime, date
 from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy.orm import Mapped
 
+# Esto le dice a Pylance que estas clases existen, sin importarlas realmente
 if TYPE_CHECKING:
     from app.models.tecnica import Tecnica
     from app.models.comprador import Comprador
@@ -28,18 +30,13 @@ class Obra(SQLModel, table=True):
     
     fecha_creacion: datetime = Field(default_factory=datetime.utcnow)
     fecha_actualizacion: datetime = Field(default_factory=datetime.utcnow)
-
-    #Nuevo campo para indicar si la obra está activa o no
-    activo: bool = Field(default=True, description="True si la obra está activa, False si fue 'eliminada'")
+    activo: bool = Field(default=True)
     
     tecnica_id: Optional[int] = Field(default=None, foreign_key="tecnica.id")
-    tecnica: Optional["Tecnica"] = Relationship(back_populates="obras")
+    tecnica: Mapped[Optional["Tecnica"]] = Relationship(back_populates="obras")
     
-    # Relación con Comprador: Una obra puede ser comprada por un comprador
     comprador_id: Optional[int] = Field(default=None, foreign_key="comprador.id")
-    comprador: Optional["Comprador"] = Relationship(back_populates="obras")
-    fecha_venta: Optional[date] = Field(default=None)
+    comprador: Mapped[Optional["Comprador"]] = Relationship(back_populates="obras")
     
-    prestamo: Optional["Prestamo"] = Relationship(back_populates="obra")
-    
-    exposiciones: List["ObraExposicion"] = Relationship(back_populates="obra")
+    prestamo: Mapped[Optional["Prestamo"]] = Relationship(back_populates="obra")
+    exposiciones: Mapped[List["ObraExposicion"]] = Relationship(back_populates="obra")

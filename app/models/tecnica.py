@@ -1,7 +1,7 @@
 from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy.orm import Mapped
 
-# Esto le dice a Python: "Obra existe, confía en mí, no la importes todavía"
 if TYPE_CHECKING:
     from app.models.obra import Obra
 
@@ -11,6 +11,4 @@ class TecnicaBase(SQLModel):
 
 class Tecnica(TecnicaBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    
-    # Ahora sí, SQLAlchemy entiende perfectamente que es una lista de "Obra"
-    obras: List["Obra"] = Relationship(back_populates="tecnica")
+    obras: Mapped[List["Obra"]] = Relationship(back_populates="tecnica")
