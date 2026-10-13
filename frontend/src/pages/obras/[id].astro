@@ -2,6 +2,10 @@
 import Layout from '../../layouts/Layout.astro';
 import { getObraById, getTecnica, getComprador } from '../../services/api';
 
+// ¡IMPORTANTE! Le decimos a Astro que esta página se renderiza en el servidor (SSR)
+// y no necesita generar rutas estáticas en el momento del build.
+export const prerender = false;
+
 // 1. Obtenemos el ID de la URL (ej: /obras/1 -> id = "1")
 const { id } = Astro.params;
 const obraId = Number(id);

@@ -11,8 +11,8 @@ export interface Obra {
   estado: string;
   imagen_url: string | null;
   tecnica_id: number | null;
-  notas: string | null;
   comprador_id: number | null;
+  notas: string | null;
 }
 
 /**
