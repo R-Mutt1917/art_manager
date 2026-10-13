@@ -1,0 +1,68 @@
+---
+import type { Obra } from '../services/api';
+
+interface Props {
+  obra: Obra;
+}
+
+const { obra } = Astro.props;
+
+// Si no hay imagen, usamos un placeholder elegante de Unsplash
+const imageUrl = obra.imagen_url 
+  ? `${import.meta.env.PUBLIC_API_URL}${obra.imagen_url}` 
+  : 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=800';
+
+// Formateo de precio elegante
+const precioFormateado = obra.precio 
+  ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(obra.precio)
+  : 'Consultar';
+---
+
+<article class="group flex flex-col bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl hover:border-accent/20 transition-all duration-300 ease-in-out h-full">
+  
+  <!-- Enlace que envuelve todo para mejor UX (toda la tarjeta es clicable) -->
+  <a href={`/obras/${obra.id}`} class="flex flex-col flex-grow focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
+    
+    <!-- Contenedor de imagen con relación de aspecto fija (evita saltos de layout - CLS) -->
+    <figure class="relative aspect-[4/5] overflow-hidden bg-gray-100">
+      <img 
+        src={imageUrl} 
+        alt={`Obra de arte titulada: ${obra.titulo}`} 
+        loading="lazy"
+        width="400"
+        height="500"
+        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+      
+      <!-- Badge de estado (solo si no es disponible) -->
+      {obra.estado !== 'disponible' && (
+        <span class="absolute top-3 right-3 px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-gray-900/90 text-white rounded-full backdrop-blur-sm">
+          {obra.estado}
+        </span>
+      )}
+    </figure>
+
+    <!-- Información de la obra -->
+    <figcaption class="p-5 flex flex-col flex-grow">
+      <h3 class="font-serif text-xl font-bold text-text-primary mb-1 group-hover:text-accent transition-colors line-clamp-2">
+        {obra.titulo}
+      </h3>
+      
+      <div class="flex items-center gap-2 text-sm text-text-secondary mb-3">
+        <span>{obra.anio}</span>
+        <span aria-hidden="true">•</span>
+        <span>{obra.dimensiones}</span>
+      </div>
+
+      <div class="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+        <span class="text-lg font-semibold text-text-primary">
+          {precioFormateado}
+        </span>
+        <span class="text-sm font-medium text-accent group-hover:underline flex items-center gap-1">
+          Ver detalles 
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </span>
+      </div>
+    </figcaption>
+  </a>
+</article>

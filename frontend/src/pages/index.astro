@@ -1,12 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ArtworkCard from '../components/ArtworkCard.astro';
 import { getObras } from '../services/api';
 
-// Obtenemos los datos del backend ANTES de renderizar el HTML (Server-Side)
 const obras = await getObras();
 ---
 
-<Layout title="Catálogo" description="Colección de obras de arte">
+<Layout title="Catálogo" description="Colección de obras de arte contemporáneo">
   
   <section class="mb-12 text-center max-w-2xl mx-auto">
     <h1 class="font-serif text-4xl md:text-5xl font-bold mb-4">Catálogo de Obras</h1>
@@ -14,24 +14,19 @@ const obras = await getObras();
   </section>
 
   {obras.length > 0 ? (
-    <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
       {obras.map((obra) => (
-        <li class="group bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-accent/30 transition-all duration-300">
-          <h2 class="font-serif text-xl font-bold mb-2 group-hover:text-accent transition-colors">
-            {obra.titulo}
-          </h2>
-          <p class="text-sm text-text-secondary mb-3">
-            {obra.anio} • {obra.dimensiones}
-          </p>
-          <p class="text-lg font-semibold text-text-primary">
-            {obra.precio ? `$${obra.precio.toLocaleString('es-AR')}` : 'Consultar'}
-          </p>
+        <li>
+          <ArtworkCard obra={obra} />
         </li>
       ))}
     </ul>
   ) : (
     <div class="text-center py-20 bg-gray-50 rounded-lg border border-dashed border-gray-300" role="status">
-      <p class="text-text-secondary text-lg">No hay obras disponibles en este momento. ¡Agrega algunas desde el backend!</p>
+      <p class="text-text-secondary text-lg">No hay obras disponibles en este momento.</p>
+      <a href="http://localhost:8000/docs" target="_blank" class="text-accent hover:underline mt-2 inline-block">
+        Agrega algunas desde el backend →
+      </a>
     </div>
   )}
 
