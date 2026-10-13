@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: art_manager_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # 1. Monta el código para desarrollo (hot reload)
+      - ./backend:/app
+      # 2. Volumen con nombre para la base de datos (Docker lo gestiona, cero conflictos de permisos)
+      - db_data:/app
+      # 3. Volumen con nombre para las imágenes subidas
+      - upload_data:/app/app/uploads
+    environment:
+      - ENVIRONMENT=development
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Definición de volúmenes con nombre (Docker los crea y protege automáticamente)
+volumes:
+  db_data:
+  upload_data:
