@@ -98,21 +98,21 @@ class ExposicionService:
         if not exposicion:
             raise HTTPException(status_code=404, detail="Exposición no encontrada")
 
-        # Obtenemos todas las asignaciones de esta exposición junto con los datos de la obra
-        statement = (
-            select(ObraExposicion, ObraExposicion.obra) # type: ignore
-            .where(ObraExposicion.exposicion_id == expo_id)
-        )
-        resultados = self.session.exec(statement).all()
+        # 1. Obtenemos todas las asignaciones de esta exposición
+        statement = select(ObraExposicion).where(ObraExposicion.exposicion_id == expo_id)
+        asignaciones = self.session.exec(statement).all()
         
         checklist = []
-        for asignacion, obra in resultados:
-            checklist.append({
-                "titulo_obra": obra.titulo,
-                "dimensiones": obra.dimensiones,
-                "sala": asignacion.sala,
-                "pared": asignacion.pared,
-                "estado_actual": obra.estado.value if hasattr(obra.estado, 'value') else obra.estado
-            })
-            
+        for asignacion in asignaciones:
+            # 2. Accedemos a la obra a través de la relación (SQLModel la carga automáticamente)
+            obra = asignacion.obra
+            if obra:
+                checklist.append({
+                    "titulo_obra": obra.titulo,
+                    "dimensiones": obra.dimensiones,
+                    "sala": asignacion.sala,
+                    "pared": asignacion.pared,
+                    "estado_actual": obra.estado.value if hasattr(obra.estado, 'value') else str(obra.estado)
+                })
+                
         return checklist
