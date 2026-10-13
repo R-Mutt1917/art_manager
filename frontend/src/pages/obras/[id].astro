@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getObraById } from '../../services/api';
+import { getObraById, getTecnica, getComprador } from '../../services/api';
 
 // 1. Obtenemos el ID de la URL (ej: /obras/1 -> id = "1")
 const { id } = Astro.params;
@@ -11,23 +11,26 @@ const obra = await getObraById(obraId);
 
 // 3. Si no existe, mostramos una página 404 elegante
 if (!obra) {
-  // Astro permite devolver respuestas HTTP personalizadas
   return new Response(null, { status: 404 });
 }
 
-// 4. URL de la imagen (con fallback elegante)
+// 4. NUEVO: Traemos los datos relacionados (Técnica y Comprador)
+const tecnica = obra.tecnica_id ? await getTecnica(obra.tecnica_id) : null;
+const comprador = obra.comprador_id ? await getComprador(obra.comprador_id) : null;
+
+// 5. URL de la imagen (con fallback elegante)
 const imageUrl = obra.imagen_url 
   ? `${import.meta.env.PUBLIC_API_URL}${obra.imagen_url}` 
   : 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=1200';
 
-// 5. Formateo de precio
+// 6. Formateo de precio
 const precioFormateado = obra.precio 
   ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(obra.precio)
   : 'Consultar';
 
-// 6. Estado legible
+// 7. Estado legible (ahora incluye el nombre del comprador si está vendida)
 const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisición' 
-                  : obra.estado === 'vendida' ? 'Obra vendida' 
+                  : obra.estado === 'vendida' ? `Vendida a ${comprador?.nombre || 'particular'}` 
                   : obra.estado === 'en_exposicion' ? 'En exposición temporal' 
                   : 'En préstamo';
 ---
@@ -82,10 +85,16 @@ const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisici�
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline border-b border-gray-200 pb-3">
           <dt class="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-1 sm:mb-0">Técnica</dt>
           <dd class="text-lg text-text-primary font-medium">
-            <!-- Aquí podríamos hacer un join con la técnica si la trajéramos, por ahora mostramos el ID o un placeholder -->
-            {obra.tecnica_id ? `ID Técnica: ${obra.tecnica_id}` : 'No especificada'}
+            {tecnica ? tecnica.nombre : 'No especificada'}
           </dd>
         </div>
+
+        {obra.estado === 'vendida' && comprador && (
+          <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline border-b border-gray-200 pb-3">
+            <dt class="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-1 sm:mb-0">Adquirida por</dt>
+            <dd class="text-lg text-text-primary font-medium">{comprador.nombre}</dd>
+          </div>
+        )}
 
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline pt-2">
           <dt class="text-sm font-semibold uppercase tracking-wider text-text-secondary mb-1 sm:mb-0">Precio</dt>
