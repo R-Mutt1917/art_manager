@@ -20,3 +20,13 @@ def crear_tecnica(tecnica_data: TecnicaCreate, session: Session = Depends(get_se
 def listar_tecnicas(session: Session = Depends(get_session)):
     """El router solo delega al service."""
     return service_listar(session)
+
+@router.get("/{tecnica_id}", response_model=TecnicaRead)
+def obtener_tecnica(tecnica_id: int, session: Session = Depends(get_session)):
+    """Obtiene una técnica específica por su ID."""
+    from app.models.tecnica import Tecnica
+    
+    tecnica = session.get(Tecnica, tecnica_id)
+    if not tecnica:
+        raise HTTPException(status_code=404, detail="Técnica no encontrada")
+    return tecnica
