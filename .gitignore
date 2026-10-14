@@ -1,0 +1,7 @@
+# Entornos virtuales y configuraciones de IDE
+.vscode/
+.idea/
+backend/venv/
+frontend/node_modules/
+frontend/.next/
+frontend/venv/
