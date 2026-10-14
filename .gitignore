@@ -1,7 +1,18 @@
-# Entornos virtuales y configuraciones de IDE
+# IDE y configuraciones personales
 .vscode/
 .idea/
+*.swp
+
+# Entornos virtuales
 backend/venv/
 frontend/node_modules/
 frontend/.next/
-frontend/venv/
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Bases de datos y uploads
+*.db
+backend/app/uploads/*
+!backend/app/uploads/.gitkeep
