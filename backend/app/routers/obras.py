@@ -11,12 +11,17 @@ from app.models.obra import Obra, EstadoObra
 from app.models.tecnica import Tecnica
 from app.schemas.obra import ObraCreate, ObraUpdate, ObraRead
 from app.services.obra_service import ObraService
-from app.services.image_service import guardar_imagen
+from app.services.image_service import guardar_imagen, eliminar_imagen
 
 router = APIRouter(prefix="/obras", tags=["Obras"])
 
 def get_obra_service(session: Session = Depends(get_session)) -> ObraService:
     return ObraService(session)
+
+
+# ==========================================
+# CREATE
+# ==========================================
 
 @router.post("/", response_model=ObraRead, status_code=201)
 def crear_obra(
@@ -37,7 +42,6 @@ def crear_obra(
     tecnica_obj = session.exec(select(Tecnica).where(Tecnica.nombre == tecnica)).first()
     
     if not tecnica_obj:
-        # Crear nueva técnica
         tecnica_obj = Tecnica(nombre=tecnica, descripcion="Creada desde el formulario")
         session.add(tecnica_obj)
         session.commit()
@@ -72,6 +76,10 @@ def crear_obra(
     return service.crear(obra_data)
 
 
+# ==========================================
+# READ
+# ==========================================
+
 @router.get("/", response_model=List[ObraRead])
 def listar_obras(
     estado: Optional[EstadoObra] = Query(None),
@@ -84,6 +92,77 @@ def listar_obras(
 @router.get("/{obra_id}", response_model=ObraRead)
 def obtener_obra(obra_id: int, service: ObraService = Depends(get_obra_service)):
     return service.obtener_por_id(obra_id)
+
+
+# ==========================================
+# UPDATE (Camino A: acepta FormData)
+# ==========================================
+
+@router.put("/{obra_id}", response_model=ObraRead)
+def actualizar_obra(
+    obra_id: int,
+    titulo: str = Form(...),
+    anio: int = Form(...),
+    dimensiones: str = Form(...),
+    precio: Optional[float] = Form(None),
+    estado: str = Form("disponible"),
+    notas: Optional[str] = Form(None),
+    tecnica: str = Form(...),
+    imagen: Optional[UploadFile] = File(None),  # Nueva imagen opcional
+    session: Session = Depends(get_session),
+    service: ObraService = Depends(get_obra_service)
+):
+    """
+    Actualiza una obra existente.
+    Acepta FormData para permitir cambiar la imagen en la misma operación.
+    Si no se envía imagen, conserva la actual.
+    """
+    # 1. Verificar que la obra existe (lanza 404 si no)
+    obra_existente = service.obtener_por_id(obra_id)
+    
+    # 2. Resolver técnica (upsert, igual que en POST)
+    tecnica_obj = session.exec(select(Tecnica).where(Tecnica.nombre == tecnica)).first()
+    if not tecnica_obj:
+        tecnica_obj = Tecnica(nombre=tecnica, descripcion="Creada desde edición")
+        session.add(tecnica_obj)
+        session.commit()
+        session.refresh(tecnica_obj)
+    
+    # 3. Procesar imagen nueva si viene (reemplaza la anterior)
+    datos_update = {
+        "titulo": titulo,
+        "anio": anio,
+        "dimensiones": dimensiones,
+        "precio": precio,
+        "notas": notas,
+        "tecnica_id": tecnica_obj.id,
+    }
+    
+    try:
+        datos_update["estado"] = EstadoObra(estado)
+    except ValueError:
+        datos_update["estado"] = EstadoObra.disponible
+    
+    if imagen and imagen.filename:
+        # Borrar imagen anterior del disco si existía
+        if obra_existente.imagen_url:
+            eliminar_imagen(obra_existente.imagen_url)
+        
+        try:
+            datos_update["imagen_url"] = guardar_imagen(imagen)
+        except Exception as e:
+            session.rollback()
+            raise HTTPException(status_code=500, detail=f"Error al guardar imagen: {str(e)}")
+    # Si NO viene imagen, no tocamos imagen_url (se conserva la actual)
+    
+    # 4. Aplicar la actualización vía service
+    obra_update = ObraUpdate(**datos_update)
+    return service.actualizar(obra_id, obra_update)
+
+
+# ==========================================
+# DELETE (Soft delete)
+# ==========================================
 
 @router.delete("/{obra_id}")
 def eliminar_obra(obra_id: int, service: ObraService = Depends(get_obra_service)):
