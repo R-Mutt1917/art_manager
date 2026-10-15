@@ -1,87 +1,89 @@
+import uuid
+from datetime import date, timedelta
 from fastapi.testclient import TestClient
 
-def test_asignar_obra_a_exposicion_sin_superposicion(client: TestClient):
-    """Test: Asignar una obra a una exposición funciona correctamente."""
-    # 1. Crear técnica y obra
-    tecnica = client.post("/tecnicas/", json={"nombre": "Óleo", "descripcion": "Test"}).json()
-    obra = client.post("/obras/", json={
-        "titulo": "Obra de Prueba", "anio": 2024, "dimensiones": "50x50 cm",
-        "precio": 1000.0, "estado": "disponible", "tecnica_id": tecnica["id"]
-    }).json()
-    
-    # 2. Crear exposición
-    expo = client.post("/exposiciones/", json={
-        "nombre": "Expo Primavera", "lugar": "Galería Central",
-        "fecha_inicio": "2024-03-01", "fecha_fin": "2024-03-15"
-    }).json()
-    
-    # 3. Asignar obra a la exposición
-    response = client.post(f"/exposiciones/{expo['id']}/obras/{obra['id']}", json={
-        "sala": "Sala A", "pared": "Norte"
+
+def _crear_tecnica(client: TestClient) -> str:
+    nombre = f"Técnica {uuid.uuid4().hex[:8]}"
+    r = client.post("/tecnicas/", json={"nombre": nombre, "descripcion": "Test"})
+    assert r.status_code == 201
+    return nombre
+
+
+def _crear_obra(client: TestClient, tecnica_nombre: str) -> dict:
+    data = {
+        "titulo": "Obra de prueba",
+        "anio": "2024",
+        "dimensiones": "50x70 cm",
+        "estado": "disponible",
+        "tecnica": tecnica_nombre,
+    }
+    r = client.post("/obras/", data=data)
+    assert r.status_code == 201, r.json()
+    return r.json()
+
+
+def _crear_exposicion(client: TestClient, fecha_inicio: date, fecha_fin: date) -> dict:
+    r = client.post("/exposiciones/", json={
+        "nombre": f"Expo {uuid.uuid4().hex[:8]}",
+        "fecha_inicio": fecha_inicio.isoformat(),
+        "fecha_fin": fecha_fin.isoformat(),
     })
+    assert r.status_code == 201, r.json()
+    return r.json()
+
+
+def test_asignar_obra_a_exposicion_sin_superposicion(client: TestClient):
+    """Asignar una obra a una exposición sin conflictos de fechas."""
+    nombre_tecnica = _crear_tecnica(client)
+    obra = _crear_obra(client, nombre_tecnica)
     
-    assert response.status_code == 201
-    data = response.json()
-    assert data["obra_id"] == obra["id"]
-    assert data["exposicion_id"] == expo["id"]
+    hoy = date.today()
+    expo = _crear_exposicion(client, hoy + timedelta(days=10), hoy + timedelta(days=30))
+    
+    r = client.post(f"/exposiciones/{expo['id']}/asignar/{obra['id']}")
+    assert r.status_code == 200, r.json()
+    
+    # Verificar que la obra está en exposición
+    obra_actualizada = client.get(f"/obras/{obra['id']}").json()
+    assert obra_actualizada["estado"] == "en_exposicion"
+
 
 def test_rechazar_asignacion_con_fechas_superpuestas(client: TestClient):
-    """
-    Test CRÍTICO: El sistema RECHAZA asignar una obra si ya está en otra 
-    exposición con fechas que se solapan.
-    """
-    # 1. Crear técnica y obra
-    tecnica = client.post("/tecnicas/", json={"nombre": "Acuarela", "descripcion": "Test"}).json()
-    obra = client.post("/obras/", json={
-        "titulo": "Obra Conflictiva", "anio": 2024, "dimensiones": "50x50 cm",
-        "precio": 1000.0, "estado": "disponible", "tecnica_id": tecnica["id"]
-    }).json()
+    """No se puede asignar una obra si ya está en otra exposición en esas fechas."""
+    nombre_tecnica = _crear_tecnica(client)
+    obra = _crear_obra(client, nombre_tecnica)
     
-    # 2. Crear PRIMERA exposición (1 al 15 de Marzo)
-    expo1 = client.post("/exposiciones/", json={
-        "nombre": "Expo 1", "lugar": "Lugar 1",
-        "fecha_inicio": "2024-03-01", "fecha_fin": "2024-03-15"
-    }).json()
+    hoy = date.today()
+    expo1 = _crear_exposicion(client, hoy + timedelta(days=10), hoy + timedelta(days=30))
+    expo2 = _crear_exposicion(client, hoy + timedelta(days=20), hoy + timedelta(days=40))
     
-    # Asignar obra a expo1 (debe funcionar)
-    client.post(f"/exposiciones/{expo1['id']}/obras/{obra['id']}", json={"sala": "A"}).json()
+    # Asignar a expo1
+    r1 = client.post(f"/exposiciones/{expo1['id']}/asignar/{obra['id']}")
+    assert r1.status_code == 200
     
-    # 3. Crear SEGUNDA exposición con fechas superpuestas (10 al 25 de Marzo)
-    expo2 = client.post("/exposiciones/", json={
-        "nombre": "Expo 2", "lugar": "Lugar 2",
-        "fecha_inicio": "2024-03-10", "fecha_fin": "2024-03-25"
-    }).json()
-    
-    # 4. Intentar asignar la MISMA obra a la expo2 (¡DEBE FALLAR!)
-    response = client.post(f"/exposiciones/{expo2['id']}/obras/{obra['id']}", json={"sala": "B"})
-    
-    assert response.status_code == 400
-    assert "ya está asignada a otra exposición en fechas que se superponen" in response.json()["detail"]
+    # Intentar asignar a expo2 (fechas superpuestas)
+    r2 = client.post(f"/exposiciones/{expo2['id']}/asignar/{obra['id']}")
+    assert r2.status_code == 400
+    assert "conflicto" in r2.json()["detail"].lower()
+
 
 def test_checklist_de_retiro(client: TestClient):
-    """Test: Generar checklist de obras para retirar al finalizar una exposición."""
-    # 1. Crear técnica, obra y exposición
-    tecnica = client.post("/tecnicas/", json={"nombre": "Escultura", "descripcion": "Test"}).json()
-    obra = client.post("/obras/", json={
-        "titulo": "Escultura a Retirar", "anio": 2024, "dimensiones": "30x30x30 cm",
-        "precio": 5000.0, "estado": "disponible", "tecnica_id": tecnica["id"]
-    }).json()
+    """Marcar el checklist de retiro de una obra en exposición."""
+    nombre_tecnica = _crear_tecnica(client)
+    obra = _crear_obra(client, nombre_tecnica)
     
-    expo = client.post("/exposiciones/", json={
-        "nombre": "Expo Final", "lugar": "Museo",
-        "fecha_inicio": "2024-05-01", "fecha_fin": "2024-05-10"
-    }).json()
+    hoy = date.today()
+    expo = _crear_exposicion(client, hoy, hoy + timedelta(days=30))
     
-    # 2. Asignar obra
-    client.post(f"/exposiciones/{expo['id']}/obras/{obra['id']}", json={
-        "sala": "Sala Principal", "pared": "Centro"
+    # Asignar obra
+    client.post(f"/exposiciones/{expo['id']}/asignar/{obra['id']}")
+    
+    # Marcar checklist
+    r = client.post(f"/exposiciones/{expo['id']}/obras/{obra['id']}/checklist-retiro", json={
+        "estado_embalaje": "excelente",
+        "condiciones_transporte": "aprobado",
+        "documentacion_completa": True,
     })
-    
-    # 3. Solicitar checklist
-    response = client.get(f"/exposiciones/{expo['id']}/checklist")
-    
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data) == 1
-    assert data[0]["titulo_obra"] == "Escultura a Retirar"
-    assert data[0]["sala"] == "Sala Principal"
+    assert r.status_code == 200, r.json()
+    assert r.json()["checklist_retiro_completado"] is True

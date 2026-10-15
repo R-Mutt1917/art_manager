@@ -84,3 +84,8 @@ def listar_obras(
 @router.get("/{obra_id}", response_model=ObraRead)
 def obtener_obra(obra_id: int, service: ObraService = Depends(get_obra_service)):
     return service.obtener_por_id(obra_id)
+
+@router.delete("/{obra_id}")
+def eliminar_obra(obra_id: int, service: ObraService = Depends(get_obra_service)):
+    """Soft delete: Marca la obra como inactiva sin borrarla de la BD."""
+    return service.eliminar_logico(obra_id)

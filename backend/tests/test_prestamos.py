@@ -1,70 +1,87 @@
+import uuid
+from datetime import date, timedelta
 from fastapi.testclient import TestClient
 
+
+def _crear_tecnica(client: TestClient) -> str:
+    nombre = f"Técnica {uuid.uuid4().hex[:8]}"
+    r = client.post("/tecnicas/", json={"nombre": nombre, "descripcion": "Test"})
+    assert r.status_code == 201
+    return nombre
+
+
+def _crear_obra(client: TestClient, tecnica_nombre: str) -> dict:
+    data = {
+        "titulo": "Obra de prueba",
+        "anio": "2024",
+        "dimensiones": "50x70 cm",
+        "estado": "disponible",
+        "tecnica": tecnica_nombre,
+    }
+    r = client.post("/obras/", data=data)
+    assert r.status_code == 201, r.json()
+    return r.json()
+
+
+def _crear_prestamo(client: TestClient, obra_id: int, fecha_inicio: date, fecha_fin: date) -> dict:
+    r = client.post("/prestamos/", json={
+        "obra_id": obra_id,
+        "institucion_destino": f"Museo {uuid.uuid4().hex[:8]}",
+        "fecha_inicio": fecha_inicio.isoformat(),
+        "fecha_fin": fecha_fin.isoformat(),
+        "motivo": "Exposición temporal",
+    })
+    assert r.status_code == 201, r.json()
+    return r.json()
+
+
 def test_ciclo_completo_de_prestamo(client: TestClient):
-    """Test: Prestar una obra cambia su estado a 'en_prestamo', y al devolverla vuelve a 'disponible'."""
-    # 1. Crear técnica y obra disponible
-    tecnica = client.post("/tecnicas/", json={"nombre": "Escultura", "descripcion": "Test"}).json()
-    obra = client.post("/obras/", json={
-        "titulo": "Escultura en Préstamo", "anio": 2024, "dimensiones": "30x30x30 cm",
-        "precio": 5000.0, "estado": "disponible", "tecnica_id": tecnica["id"]
-    }).json()
+    """Crear préstamo, confirmar salida, y registrar devolución."""
+    nombre_tecnica = _crear_tecnica(client)
+    obra = _crear_obra(client, nombre_tecnica)
     
-    # 2. Registrar el préstamo
-    response_prestamo = client.post("/prestamos/", json={
-        "obra_id": obra["id"],
-        "prestatario_nombre": "Museo de Arte",
-        "fecha_prestamo": "2024-11-01",
-        "fecha_devolucion_esperada": "2024-12-01",
-        "motivo": "Exposición temporal"
+    hoy = date.today()
+    prestamo = _crear_prestamo(client, obra["id"], hoy, hoy + timedelta(days=30))
+    
+    # Confirmar salida
+    r_salida = client.post(f"/prestamos/{prestamo['id']}/confirmar-salida")
+    assert r_salida.status_code == 200, r_salida.json()
+    
+    obra_actualizada = client.get(f"/obras/{obra['id']}").json()
+    assert obra_actualizada["estado"] == "en_prestamo"
+    
+    # Registrar devolución
+    r_dev = client.post(f"/prestamos/{prestamo['id']}/registrar-devolucion", json={
+        "condicion_retorno": "excelente",
+        "observaciones": "Sin daños"
     })
+    assert r_dev.status_code == 200, r_dev.json()
     
-    assert response_prestamo.status_code == 201
-    prestamo_id = response_prestamo.json()["id"]
-    
-    # 3. Verificar que la obra cambió de estado
-    response_obra = client.get(f"/obras/{obra['id']}")
-    assert response_obra.json()["estado"] == "en_prestamo"
-    
-    # 4. Registrar la devolución
-    response_devolucion = client.post(f"/prestamos/{prestamo_id}/devolucion", json={
-        "fecha_devolucion_real": "2024-11-25",
-        "estado_obra_tras_devolucion": "disponible"
-    })
-    
-    assert response_devolucion.status_code == 200
-    assert response_devolucion.json()["nuevo_estado_obra"] == "disponible"
-    
-    # 5. Verificar que la obra volvió a estar disponible
-    response_obra_final = client.get(f"/obras/{obra['id']}")
-    assert response_obra_final.json()["estado"] == "disponible"
+    obra_final = client.get(f"/obras/{obra['id']}").json()
+    assert obra_final["estado"] == "disponible"
+
 
 def test_no_se_puede_prestar_una_obra_vendida(client: TestClient):
-    """Test: El sistema rechaza prestar una obra que ya fue vendida."""
-    # 1. Crear técnica, obra (disponible) y un comprador
-    tecnica = client.post("/tecnicas/", json={"nombre": "Fotografía", "descripcion": "Test"}).json()
-    obra = client.post("/obras/", json={
-        "titulo": "Foto a Vender y Prestar", "anio": 2024, "dimensiones": "40x50 cm",
-        "precio": 800.0, "estado": "disponible", "tecnica_id": tecnica["id"]
-    }).json()
+    """Una obra vendida no puede ser prestada."""
+    nombre_tecnica = _crear_tecnica(client)
+    obra = _crear_obra(client, nombre_tecnica)
     
+    # Vender la obra primero
     comprador = client.post("/compradores/", json={
-        "nombre": "Comprador Test", "email": "comprador@test.com"
+        "nombre": "Comprador Test",
+        "email": "test@example.com"
     }).json()
     
-    # 2. Vender la obra primero (esto cambia su estado a 'vendida')
-    client.post("/compradores/ventas/registrar", json={
-        "obra_id": obra["id"],
-        "comprador_id": comprador["id"],
-        "fecha_venta": "2024-10-01"
-    })
+    client.post(f"/compradores/{comprador['id']}/comprar/{obra['id']}")
     
-    # 3. Intentar prestar la obra vendida (¡DEBE FALLAR!)
-    response = client.post("/prestamos/", json={
+    # Intentar crear préstamo
+    hoy = date.today()
+    r = client.post("/prestamos/", json={
         "obra_id": obra["id"],
-        "prestatario_nombre": "Galería X",
-        "fecha_prestamo": "2024-11-01",
-        "fecha_devolucion_esperada": "2024-12-01"
+        "institucion_destino": "Museo Test",
+        "fecha_inicio": hoy.isoformat(),
+        "fecha_fin": (hoy + timedelta(days=30)).isoformat(),
+        "motivo": "Préstamo",
     })
-    
-    assert response.status_code == 400
-    assert "ya está vendida" in response.json()["detail"]
+    assert r.status_code == 400
+    assert "vendida" in r.json()["detail"].lower()

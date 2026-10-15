@@ -1,70 +1,69 @@
+import uuid
 from fastapi.testclient import TestClient
 
-def test_registrar_venta_cambia_estado_de_obra(client: TestClient):
-    """Test: Al registrar una venta, la obra cambia a 'vendida' y se asocia al comprador."""
-    # 1. Crear técnica y obra disponible
-    tecnica = client.post("/tecnicas/", json={"nombre": "Óleo", "descripcion": "Test"}).json()
-    obra = client.post("/obras/", json={
-        "titulo": "Obra para Vender", "anio": 2024, "dimensiones": "50x50 cm",
-        "precio": 2000.0, "estado": "disponible", "tecnica_id": tecnica["id"]
-    }).json()
-    
-    # 2. Crear comprador
-    comprador = client.post("/compradores/", json={
-        "nombre": "Juan Pérez", "email": "juan@email.com"
-    }).json()
-    
-    # 3. Registrar la venta
-    response_venta = client.post("/compradores/ventas/registrar", json={
-        "obra_id": obra["id"],
-        "comprador_id": comprador["id"],
-        "fecha_venta": "2024-10-01"
+
+def _crear_tecnica(client: TestClient) -> str:
+    """Crea una técnica y devuelve el nombre."""
+    nombre = f"Técnica {uuid.uuid4().hex[:8]}"
+    r = client.post("/tecnicas/", json={"nombre": nombre, "descripcion": "Test"})
+    assert r.status_code == 201, r.json()
+    return nombre
+
+
+def _crear_obra(client: TestClient, tecnica_nombre: str, **overrides) -> dict:
+    """Crea una obra con FormData."""
+    data = {
+        "titulo": "Obra de prueba",
+        "anio": "2024",
+        "dimensiones": "50x70 cm",
+        "precio": "1500",
+        "estado": "disponible",
+        "tecnica": tecnica_nombre,
+    }
+    data.update(overrides)
+    r = client.post("/obras/", data=data)
+    assert r.status_code == 201, r.json()
+    return r.json()
+
+
+def _crear_comprador(client: TestClient) -> dict:
+    """Crea un comprador."""
+    r = client.post("/compradores/", json={
+        "nombre": f"Comprador {uuid.uuid4().hex[:8]}",
+        "email": f"test{uuid.uuid4().hex[:8]}@example.com"
     })
+    assert r.status_code == 201, r.json()
+    return r.json()
+
+
+def test_registrar_venta_cambia_estado_de_obra(client: TestClient):
+    """Registrar una venta cambia el estado de la obra a 'vendida'."""
+    nombre_tecnica = _crear_tecnica(client)
+    obra = _crear_obra(client, nombre_tecnica)
+    comprador = _crear_comprador(client)
     
-    assert response_venta.status_code == 201
-    data_venta = response_venta.json()
-    assert data_venta["mensaje"] == "Venta registrada exitosamente"
-    assert data_venta["comprador_id"] == comprador["id"]
+    # Registrar venta
+    r = client.post(f"/compradores/{comprador['id']}/comprar/{obra['id']}")
+    assert r.status_code == 200, r.json()
     
-    # 4. Verificar que la obra ahora está vendida
-    response_obra = client.get(f"/obras/{obra['id']}")
-    assert response_obra.status_code == 200
-    obra_actualizada = response_obra.json()
+    # Verificar que la obra ahora está vendida
+    obra_actualizada = client.get(f"/obras/{obra['id']}").json()
     assert obra_actualizada["estado"] == "vendida"
     assert obra_actualizada["comprador_id"] == comprador["id"]
-    assert obra_actualizada["fecha_venta"] == "2024-10-01"
+
 
 def test_no_se_puede_vender_una_obra_ya_vendida(client: TestClient):
-    """Test: El sistema rechaza vender una obra que ya fue vendida previamente."""
-    # 1. Crear técnica, obra (disponible) y dos compradores
-    tecnica = client.post("/tecnicas/", json={"nombre": "Acuarela", "descripcion": "Test"}).json()
-    obra = client.post("/obras/", json={
-        "titulo": "Obra a Vender Dos Veces", "anio": 2024, "dimensiones": "50x50 cm",
-        "precio": 1000.0, "estado": "disponible", "tecnica_id": tecnica["id"]
-    }).json()
+    """Una obra vendida no puede venderse de nuevo."""
+    nombre_tecnica = _crear_tecnica(client)
+    obra = _crear_obra(client, nombre_tecnica)
+    comprador1 = _crear_comprador(client)
+    comprador2 = _crear_comprador(client)
     
-    comprador1 = client.post("/compradores/", json={
-        "nombre": "María López", "email": "maria@email.com"
-    }).json()
+    # Primera venta
+    r1 = client.post(f"/compradores/{comprador1['id']}/comprar/{obra['id']}")
+    assert r1.status_code == 200
     
-    comprador2 = client.post("/compradores/", json={
-        "nombre": "Carlos Ruiz", "email": "carlos@email.com"
-    }).json()
-    
-    # 2. Primera venta (DEBE FUNCIONAR)
-    response_venta1 = client.post("/compradores/ventas/registrar", json={
-        "obra_id": obra["id"],
-        "comprador_id": comprador1["id"],
-        "fecha_venta": "2024-10-01"
-    })
-    assert response_venta1.status_code == 201
-    
-    # 3. Intentar registrar una segunda venta para la MISMA obra (¡DEBE FALLAR!)
-    response_venta2 = client.post("/compradores/ventas/registrar", json={
-        "obra_id": obra["id"],
-        "comprador_id": comprador2["id"],
-        "fecha_venta": "2024-10-05"
-    })
-    
-    assert response_venta2.status_code == 400
-    assert "ya está vendida" in response_venta2.json()["detail"]
+    # Intentar segunda venta
+    r2 = client.post(f"/compradores/{comprador2['id']}/comprar/{obra['id']}")
+    assert r2.status_code == 400
+    assert "ya fue vendida" in r2.json()["detail"].lower()
