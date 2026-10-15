@@ -7,9 +7,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - db_data:/app
-      - upload_data:/app/app/uploads
+      - ./backend:/app                    # código en vivo con hot reload
+      - upload_data:/app/app/uploads      # solo las imágenes persisten en volumen
     environment:
       - ENVIRONMENT=development
     restart: unless-stopped
@@ -26,12 +25,11 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - PUBLIC_API_URL=http://backend:8000  # usa el nombre del servicio
+      - PUBLIC_API_URL=http://localhost:8000   # navegador (React)
+      - API_URL=http://backend:8000            # Astro SSR (red interna)
     depends_on:
       - backend
     restart: unless-stopped
 
-# Volúmenes con nombre para persistencia del backend
 volumes:
-  db_data:
   upload_data:

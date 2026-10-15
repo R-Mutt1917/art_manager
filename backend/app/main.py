@@ -1,20 +1,28 @@
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from pathlib import Path
 
-from app.models import *
-from app.database import create_db_and_tables
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from sqlmodel import Session
+
+from app.database import engine, create_db_and_tables
+from app.models import *  # noqa: F401,F403 - registra todos los modelos
 from app.routers import obras, tecnicas, exposiciones, compradores, prestamos
+from app.seed import seed_database
 from app.core.config import settings
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Se ejecuta al iniciar la aplicación."""
     print("🔄 Creando tablas de la base de datos...")
     create_db_and_tables()
     print("✅ Base de datos lista.")
+
+    with Session(engine) as session:
+        seed_database(session)
+
     yield
+
 
 app = FastAPI(
     title="Gestor de Obras de Arte",
@@ -23,19 +31,30 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Montar la carpeta de uploads como archivos estáticos
-# Esto permite acceder a las imágenes vía URL: http://127.0.0.1:8000/uploads/nombre_archivo.jpg
+# =====================================================
+# CORS: autoriza al frontend (navegador) a consumir la API
+# =====================================================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# =====================================================
+
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
-# 3. Registrar los routers (¡ESTO ES LO IMPORTANTE!)
 app.include_router(obras.router)
 app.include_router(tecnicas.router)
 app.include_router(exposiciones.router)
 app.include_router(compradores.router)
 app.include_router(prestamos.router)
+
+
 @app.get("/", tags=["Root"])
 def root():
     return {
-        "mensaje": "Bienvenido al Gestor de Obras de Arte ",
+        "mensaje": "Bienvenido al Gestor de Obras de Arte 🎨",
         "documentacion": "/docs",
     }

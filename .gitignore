@@ -1,18 +1,28 @@
-# IDE y configuraciones personales
-.vscode/
-.idea/
-*.swp
+# Bases de datos SQLite (viven en local, no en el repo)
+*.db
+*.sqlite3
 
-# Entornos virtuales
+# Variables de entorno
+.env
+.env.local
+
+# Imágenes subidas (son contenido, no código)
+backend/app/uploads/
+
+# Entornos virtuales y dependencias
 backend/venv/
 frontend/node_modules/
-frontend/.next/
 
-# Archivos de sistema
+# Configuraciones de IDE
+.vscode/
+.idea/
+
+# Caché y builds
+__pycache__/
+.pytest_cache/
+frontend/.astro/
+frontend/dist/
+
+# OS
 .DS_Store
 Thumbs.db
-
-# Bases de datos y uploads
-*.db
-backend/app/uploads/*
-!backend/app/uploads/.gitkeep

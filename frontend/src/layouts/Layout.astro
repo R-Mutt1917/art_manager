@@ -26,11 +26,15 @@ const { title, description = "Gestor de Obras de Arte profesional" } = Astro.pro
         <a href="/" class="font-serif text-2xl font-bold tracking-tight hover:text-accent transition-colors">
           Art Manager
         </a>
-        <nav aria-label="Navegación principal">
+        <nav aria-label="Navegación principal" class="flex items-center gap-6">
           <ul class="flex gap-6 text-sm font-medium text-text-secondary">
             <li><a href="/" class="hover:text-text-primary transition-colors">Obras</a></li>
             <li><a href="/exposiciones" class="hover:text-text-primary transition-colors">Exposiciones</a></li>
           </ul>
+          <!-- Botón de acción principal -->
+          <a href="/crear" class="px-4 py-2 bg-text-primary text-white text-sm font-semibold rounded-lg hover:bg-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
+            + Nueva Obra
+          </a>
         </nav>
       </div>
     </header>

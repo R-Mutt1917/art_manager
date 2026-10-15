@@ -1,5 +1,5 @@
 // Obtenemos la URL del backend desde las variables de entorno
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.API_URL || import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
 // Interfaz que coincide con tu modelo de Obra en FastAPI
 export interface Obra {
