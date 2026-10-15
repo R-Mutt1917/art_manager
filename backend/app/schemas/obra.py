@@ -13,6 +13,7 @@ class ObraCreate(BaseModel):
     tecnica_id: Optional[int] = None
     comprador_id: Optional[int] = None
     fecha_venta: Optional[date] = None
+    imagen_url: Optional[str] = None  # ← NUEVO: necesario para vincular la foto
 
 class ObraUpdate(BaseModel):
     titulo: Optional[str] = Field(None, min_length=1, max_length=200)
@@ -24,6 +25,7 @@ class ObraUpdate(BaseModel):
     tecnica_id: Optional[int] = None
     comprador_id: Optional[int] = None
     fecha_venta: Optional[date] = None
+    imagen_url: Optional[str] = None  # ← NUEVO: para permitir actualizar foto vía PUT
 
 class ObraRead(BaseModel):
     id: int
@@ -32,7 +34,7 @@ class ObraRead(BaseModel):
     dimensiones: str
     precio: Optional[float]
     estado: EstadoObra
-    imagen_url: Optional[str] = None # Campo opcional para la URL de la imagen
+    imagen_url: Optional[str] = None
     notas: Optional[str]
     fecha_venta: Optional[date]
     fecha_creacion: datetime
@@ -40,4 +42,4 @@ class ObraRead(BaseModel):
     tecnica_id: Optional[int]
     comprador_id: Optional[int]
     
-    model_config = {"from_attributes": True} # Permite convertir SQLModel a Pydantic
+    model_config = {"from_attributes": True}
