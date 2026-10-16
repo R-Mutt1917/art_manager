@@ -1,7 +1,10 @@
 // Obtenemos la URL del backend desde las variables de entorno
 const API_URL = import.meta.env.API_URL || import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
-// Interfaz que coincide con tu modelo de Obra en FastAPI
+// ==========================================
+// INTERFACES (definen la forma de los datos)
+// ==========================================
+
 export interface Obra {
   id: number;
   titulo: string;
@@ -14,6 +17,22 @@ export interface Obra {
   comprador_id: number | null;
   notas: string | null;
 }
+
+export interface Tecnica {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+}
+
+export interface Comprador {
+  id: number;
+  nombre: string;
+  email: string | null;
+}
+
+// ==========================================
+// FUNCIONES DE OBRAS
+// ==========================================
 
 /**
  * Obtiene todas las obras desde el backend.
@@ -52,20 +71,13 @@ export async function getObraById(id: number): Promise<Obra | null> {
   }
 }
 
-// Nuevas interfaces para los datos relacionados
-export interface Tecnica {
-  id: number;
-  nombre: string;
-  descripcion: string | null;
-}
+// ==========================================
+// FUNCIONES DE TÉCNICAS
+// ==========================================
 
-export interface Comprador {
-  id: number;
-  nombre: string;
-  email: string | null;
-}
-
-// 2. Función para obtener una técnica por su ID
+/**
+ * Obtiene una técnica por su ID.
+ */
 export async function getTecnica(id: number): Promise<Tecnica | null> {
   try {
     const response = await fetch(`${API_URL}/tecnicas/${id}`);
@@ -77,7 +89,27 @@ export async function getTecnica(id: number): Promise<Tecnica | null> {
   }
 }
 
-// 3. Función para obtener un comprador por su ID
+/**
+ * Obtiene todas las técnicas del catálogo.
+ */
+export async function getTecnicas(): Promise<Tecnica[]> {
+  try {
+    const response = await fetch(`${API_URL}/tecnicas/`);
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching tecnicas:", error);
+    return [];
+  }
+}
+
+// ==========================================
+// FUNCIONES DE COMPRADORES
+// ==========================================
+
+/**
+ * Obtiene un comprador por su ID.
+ */
 export async function getComprador(id: number): Promise<Comprador | null> {
   try {
     const response = await fetch(`${API_URL}/compradores/${id}`);

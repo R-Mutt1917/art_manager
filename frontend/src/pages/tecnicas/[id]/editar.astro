@@ -1,0 +1,98 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getTecnica } from '../../../services/api';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+const tecnica = await getTecnica(Number(id));
+
+if (!tecnica) {
+  return new Response(null, { status: 404 });
+}
+---
+
+<Layout title={`Editar: ${tecnica.nombre}`} description="Editar técnica">
+  <div class="max-w-2xl mx-auto px-4 py-8">
+    <nav class="mb-8">
+      <a href="/tecnicas" class="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-accent transition">
+        ← Volver al listado
+      </a>
+    </nav>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <h1 class="font-serif text-3xl font-bold text-text-primary mb-6">Editar Técnica</h1>
+
+      <!-- El data-id viaja del servidor al cliente de forma segura -->
+      <form id="edit-form" data-id={tecnica.id} class="space-y-6">
+        <div>
+          <label for="nombre" class="block text-sm font-medium text-text-secondary mb-2">Nombre *</label>
+          <input
+            type="text"
+            id="nombre"
+            name="nombre"
+            required
+            value={tecnica.nombre}
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+          />
+        </div>
+
+        <div>
+          <label for="descripcion" class="block text-sm font-medium text-text-secondary mb-2">Descripción</label>
+          <textarea
+            id="descripcion"
+            name="descripcion"
+            rows="4"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none resize-none"
+          >{tecnica.descripcion || ''}</textarea>
+        </div>
+
+        <div class="flex gap-4 pt-4 border-t border-gray-200">
+          <button type="submit" class="px-6 py-2.5 bg-text-primary text-white font-medium rounded-lg hover:bg-accent transition">
+            Guardar Cambios
+          </button>
+          <a href="/tecnicas" class="px-6 py-2.5 text-text-secondary hover:text-text-primary transition">
+            Cancelar
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Guard de null-safety: si el form no existe, no hacemos nada (resuelve el error 18047)
+    const form = document.getElementById('edit-form') as HTMLFormElement | null;
+    const tecnicaId = form?.dataset.id;
+
+    if (form && tecnicaId) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const data = {
+          nombre: formData.get('nombre'),
+          descripcion: formData.get('descripcion') || null,
+        };
+
+        try {
+          const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/tecnicas/${tecnicaId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Error al actualizar');
+          }
+
+          alert('Técnica actualizada correctamente');
+          window.location.href = '/tecnicas';
+        } catch (error) {
+          // Resuelve el error "error es de tipo unknown"
+          alert(error instanceof Error ? error.message : 'Error desconocido');
+        }
+      });
+    }
+  </script>
+</Layout>
