@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import DeleteArtworkButton from '../../components/DeleteArtworkButton.tsx'; // ← NUEVO IMPORT
 import { getObraById, getTecnica, getComprador } from '../../services/api';
 
 // ¡IMPORTANTE! Le decimos a Astro que esta página se renderiza en el servidor (SSR)
@@ -42,7 +43,7 @@ const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisici�
 <Layout title={obra.titulo} description={`Detalles de la obra ${obra.titulo}`}>
   
   <!-- Botón de volver accesible -->
-  <nav class="mb-8 flex items-center gap-3" aria-label="Navegación">
+  <nav class="mb-8 flex flex-wrap items-center gap-3" aria-label="Navegación de acciones">
     <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-2 py-1">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
       Volver al catálogo
@@ -51,6 +52,9 @@ const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisici�
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
       Editar
     </a>
+    
+    <!-- NUEVO: Botón de Eliminar (Isla de React) -->
+    <DeleteArtworkButton client:load obraId={obra.id} obraTitulo={obra.titulo} />
   </nav>
 
   <article class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
