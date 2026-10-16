@@ -77,16 +77,26 @@ def crear_obra(
 
 
 # ==========================================
-# READ
+# READ (con filtros avanzados)
 # ==========================================
 
 @router.get("/", response_model=List[ObraRead])
 def listar_obras(
-    estado: Optional[EstadoObra] = Query(None),
-    tecnica_id: Optional[int] = Query(None),
+    estado: Optional[EstadoObra] = Query(None, description="Filtrar por estado"),
+    tecnica_id: Optional[int] = Query(None, description="Filtrar por ID de técnica"),
+    precio_min: Optional[float] = Query(None, ge=0, description="Precio mínimo"),
+    precio_max: Optional[float] = Query(None, ge=0, description="Precio máximo"),
+    busqueda: Optional[str] = Query(None, description="Buscar en título o notas"),
     service: ObraService = Depends(get_obra_service)
 ):
-    return service.obtener_todas(estado=estado, tecnica_id=tecnica_id)
+    """Lista obras con filtros avanzados."""
+    return service.obtener_todas(
+        estado=estado, 
+        tecnica_id=tecnica_id,
+        precio_min=precio_min,
+        precio_max=precio_max,
+        busqueda=busqueda
+    )
 
 
 @router.get("/{obra_id}", response_model=ObraRead)

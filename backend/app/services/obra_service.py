@@ -15,14 +15,40 @@ class ObraService:
     def __init__(self, session: Session):
         self.session = session
     
-    def obtener_todas(self, estado: Optional[EstadoObra] = None, tecnica_id: Optional[int] = None) -> List[Obra]:
-        """Obtiene todas las obras activas con filtros opcionales."""
+    def obtener_todas(
+        self, 
+        estado: Optional[EstadoObra] = None, 
+        tecnica_id: Optional[int] = None,
+        precio_min: Optional[float] = None,
+        precio_max: Optional[float] = None,
+        busqueda: Optional[str] = None
+    ) -> List[Obra]:
+        """
+        Obtiene todas las obras activas con filtros avanzados.
+        
+        Filtros disponibles:
+        - estado: disponible, vendida, en_exposicion, en_prestamo
+        - tecnica_id: ID de la técnica
+        - precio_min: precio mínimo (inclusive)
+        - precio_max: precio máximo (inclusive)
+        - busqueda: búsqueda case-insensitive en título y notas
+        """
         query = select(Obra).where(Obra.activo == True)
         
         if estado:
             query = query.where(Obra.estado == estado)
         if tecnica_id:
             query = query.where(Obra.tecnica_id == tecnica_id)
+        if precio_min is not None:
+            query = query.where(Obra.precio >= precio_min)
+        if precio_max is not None:
+            query = query.where(Obra.precio <= precio_max)
+        if busqueda:
+            # Búsqueda case-insensitive en título o notas
+            termino = f"%{busqueda.lower()}%"
+            query = query.where(
+                (Obra.titulo.ilike(termino)) | (Obra.notas.ilike(termino))
+            )
         
         return self.session.exec(query).all()
     
