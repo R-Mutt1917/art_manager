@@ -7,7 +7,7 @@ from sqlmodel import Session
 
 from app.database import engine, create_db_and_tables
 from app.models import *  # noqa: F401,F403 - registra todos los modelos
-from app.routers import obras, tecnicas, exposiciones, compradores, prestamos
+from app.routers import obras, tecnicas, exposiciones, compradores, prestamos, dashboard
 from app.seed import seed_database
 from app.core.config import settings
 
@@ -50,7 +50,7 @@ app.include_router(tecnicas.router)
 app.include_router(exposiciones.router)
 app.include_router(compradores.router)
 app.include_router(prestamos.router)
-
+app.include_router(dashboard.router)
 
 @app.get("/", tags=["Root"])
 def root():
