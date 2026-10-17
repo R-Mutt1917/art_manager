@@ -27,30 +27,30 @@ Admin (galerista) · Curador · Asesor de ventas · Artista · Coleccionista · 
 | Backend | FastAPI + SQLModel + SQLite | Arquitectura en capas: routers → services → models |
 | Frontend | Astro 7 (SSR) + React islands + Tailwind CSS v4 | Islas React solo donde hay interactividad |
 | Infra | Docker Compose | Hot reload real en ambos servicios |
-| Testing | pytest + fastapi.TestClient | 15/15 tests pasando |
+| Testing | pytest + fastapi.TestClient | 18/18 tests pasando |
 | Gestores | pnpm (front) / pip + venv (back, solo para tests locales) | |
 
 ### Estructura del monorepo
 ```
 art_manager/
-├── docker-compose.yml        # backend + frontend, bind mounts (¡NO volúmenes sobre /app!)
+├── docker-compose.yml # backend + frontend, bind mounts (¡NO volúmenes sobre /app!)
 ├── backend/
-│   ├── app/
-│   │   ├── main.py           # lifespan: crea tablas + seed; CORS; mount /uploads
-│   │   ├── database.py       # engine, get_session, create_db_and_tables
-│   │   ├── seed.py           # 7 técnicas comunes al arrancar
-│   │   ├── core/config.py    # settings (UPLOAD_DIR, etc.)
-│   │   ├── models/           # Obra, Tecnica, Comprador, Exposicion, Prestamo
-│   │   ├── schemas/          # Pydantic: Create/Update/Read por entidad
-│   │   ├── services/         # Lógica de negocio (ObraService, image_service, etc.)
-│   │   └── routers/          # obras, tecnicas, compradores, exposiciones, prestamos
-│   └── tests/                # test_obras, test_tecnicas, test_compradores, test_exposiciones, test_prestamos
+│ ├── app/
+│ │ ├── main.py # lifespan: crea tablas + seed; CORS; mount /uploads
+│ │ ├── database.py # engine, get_session, create_db_and_tables
+│ │ ├── seed.py # 7 técnicas comunes al arrancar
+│ │ ├── core/config.py # settings (UPLOAD_DIR, etc.)
+│ │ ├── models/ # Obra, Tecnica, Comprador, Exposicion, Prestamo
+│ │ ├── schemas/ # Pydantic: Create/Update/Read por entidad
+│ │ ├── services/ # Lógica de negocio (ObraService, DashboardService, image_service, etc.)
+│ │ └── routers/ # obras, tecnicas, compradores, exposiciones, prestamos, dashboard
+│ └── tests/ # test_obras (9), test_tecnicas, test_compradores, test_exposiciones, test_prestamos
 └── frontend/
-    └── src/
-        ├── pages/            # index.astro, obras/[id].astro, crear.astro (¡/exposiciones PENDIENTE: 404!)
-        ├── components/       # ArtworkForm.tsx (isla React con autocomplete de técnicas)
-        ├── layouts/          # Layout.astro
-        └── services/api.ts   # fetch server-side (usa API_URL)
+└── src/
+├── pages/ # index.astro, obras/[id].astro, obras/[id]/editar.astro, crear.astro, dashboard.astro, tecnicas/
+├── components/ # ArtworkForm.tsx, CatalogFilters.tsx, DashboardCharts.tsx, DeleteArtworkButton.tsx
+├── layouts/ # Layout.astro (con navegación global)
+└── services/api.ts # fetch server-side (usa API_URL)
 ```
 
 ### Variables de entorno (CRÍTICO, no tocar sin leer)
@@ -65,22 +65,29 @@ art_manager/
 ### Backend
 - CRUD de obras con **subida de imagen** (multipart/form-data) y **upsert de técnica por nombre**:
   si la técnica no existe, se crea automáticamente en el mismo request.
+- **PUT de obras** acepta FormData (permite reemplazar imagen en la misma operación).
 - Seed automático de 7 técnicas al arrancar (lifespan).
 - Soft delete de obras y compradores.
+- **CRUD completo de técnicas** con validación: no se puede eliminar si tiene obras asociadas.
 - Ventas (`/compradores/ventas/registrar`) que cambian estado de obra a `vendida`.
 - Exposiciones con validación de superposición de fechas + checklist de retiro.
 - Préstamos con ciclo completo (crear → devolución) y validación de obra vendida.
+- **Filtros avanzados en GET /obras/**: estado, técnica, rango de precio, búsqueda en título/notas.
+- **Dashboard con métricas agregadas**: totales, obras por estado, valor de inventario, top técnicas.
 - Servido de imágenes estáticas en `/uploads`.
 - CORS habilitado (`allow_origins=["*"]`).
 
 ### Frontend
-- Catálogo SSR en `/` con tarjetas de obras.
-- Detalle de obra en `/obras/[id]` con técnica y comprador resueltos server-side.
-- Formulario de creación en `/crear`: autocomplete accesible de técnicas (crea on-the-fly),
+- **Catálogo SSR en `/`** con tarjetas de obras y **toolbar compacta de filtros** (búsqueda con debounce, técnica, estado, precio).
+- **Detalle de obra en `/obras/[id]`** con técnica y comprador resueltos server-side, botón de edición y eliminación con modal de confirmación.
+- **Formulario de creación/edición en `/crear` y `/obras/[id]/editar`**: autocomplete accesible de técnicas (crea on-the-fly),
   subida de imagen con preview de nombre/peso, validaciones y mensajes de éxito/error.
+- **Listado de técnicas en `/tecnicas`** con edición y eliminación (valida obras asociadas).
+- **Dashboard en `/dashboard`** con KPI cards (total obras, valor inventario, total vendido, disponibles) y gráficos Chart.js (pie de estados, bar de top técnicas).
+- **Navegación global** en Layout: Obras, Dashboard, Técnicas, Exposiciones, + Nueva Obra.
 
-### Tests: 15/15 PASSED
-- test_obras.py (6): crear, crear con imagen, upsert técnica, 422 sin técnica, listar, soft delete.
+### Tests: 18/18 PASSED
+- test_obras.py (9): crear, crear con imagen, upsert técnica, 422 sin técnica, listar, soft delete, **PUT conserva imagen**, **PUT con técnica nueva**, **PUT 404**.
 - test_tecnicas.py (2), test_compradores.py (2), test_exposiciones.py (3), test_prestamos.py (2).
 
 ---
@@ -91,15 +98,21 @@ art_manager/
 | Método | Ruta | Body | Notas |
 |--------|------|------|-------|
 | POST | `/obras/` | **FormData**: titulo, anio, dimensiones, precio?, estado?, notas?, **tecnica (NOMBRE, upsert)**, imagen? (file) | 201 |
-| GET | `/obras/` | query: `estado`, `tecnica_id` | Filtros ya soportados |
+| GET | `/obras/` | query: `estado`, `tecnica_id`, `precio_min`, `precio_max`, `busqueda` | Filtros avanzados |
 | GET | `/obras/{id}` | — | 404 si inactiva |
-| PUT | `/obras/{id}` | JSON ObraUpdate | Parcial |
+| PUT | `/obras/{id}` | **FormData** (igual que POST, imagen opcional) | Reemplaza imagen si viene |
 | DELETE | `/obras/{id}` | — | Soft delete |
 | POST | `/obras/{id}/imagen` | file | Reemplaza y borra la anterior del disco |
 | DELETE | `/obras/{id}/imagen` | — | Deja la obra sin foto |
 
 ### Técnicas
-`GET/POST /tecnicas/` · `GET /tecnicas/{id}` (faltan PUT/DELETE → Fase 1)
+| Método | Ruta | Body | Notas |
+|--------|------|------|-------|
+| GET | `/tecnicas/` | — | Lista todas |
+| POST | `/tecnicas/` | JSON TecnicaCreate | 201 |
+| GET | `/tecnicas/{id}` | — | 404 si no existe |
+| PUT | `/tecnicas/{id}` | JSON TecnicaUpdate | Parcial |
+| DELETE | `/tecnicas/{id}` | — | **400 si tiene obras asociadas** |
 
 ### Compradores
 `POST/GET /compradores/` · `GET/PUT/DELETE /compradores/{id}` ·
@@ -117,6 +130,11 @@ art_manager/
 `POST /prestamos/{id}/devolucion` (**requiere** `fecha_devolucion_real`) ·
 `GET /prestamos/activos`
 
+### Dashboard
+| Método | Ruta | Notas |
+|--------|------|-------|
+| GET | `/dashboard/stats` | Retorna JSON con: `total_obras`, `obras_por_estado`, `valor_inventario`, `total_vendido`, `top_tecnicas` |
+
 ### Estados de obra (enum EstadoObra)
 `disponible` · `vendida` · `en_exposicion` · `en_prestamo`
 
@@ -131,28 +149,31 @@ art_manager/
    variables de API URL (ver §2). Si aparece "Failed to fetch" en React, revisar CORS y PUBLIC_API_URL.
 3. **React en .tsx:** usar `className` (no `class`) y `import { type FormEvent }` con
    `verbatimModuleSyntax` habilitado.
-4. **Tests:** el POST de obras es FormData (`data=` + `files=`), NO JSON. Los tests viejos con
+4. **Tests:** el POST y PUT de obras son FormData (`data=` + `files=`), NO JSON. Los tests viejos con
    `json=` y `tecnica_id` quedan obsoletos al cambiar el contrato.
 5. **Pylance "sqlmodel no definido":** seleccionar el interpreter del venv de backend en VS Code.
 6. **Deuda técnica conocida (warnings):** `datetime.utcnow()` deprecado (migrar a
    `datetime.now(datetime.UTC)`) y `session.query()` en seed.py (usar `session.exec()`).
 7. **Reset nuclear controlado:** `docker compose down -v` borra BD y volúmenes; usar solo a conciencia.
+8. **Enums en Python:** los miembros se acceden con MAYÚSCULAS (`EstadoObra.DISPONIBLE`), no minúsculas. El `.value` es el string.
+9. **Astro y rutas dinámicas:** crear carpetas nuevas (`[id]/`) con el servidor corriendo a veces requiere `docker compose restart frontend` para que el watcher las registre.
+10. **React y SVG:** en JSX usar camelCase (`strokeWidth`, `strokeLinecap`), en .astro usar kebab-case (`stroke-width`).
 
 ---
 
 ## 6. ROADMAP POR FASES
 
-### 🟢 FASE 1 — CRUD completo y pulido (EN CURSO — prioridad inmediata)
-- [ ] F1.1 Editar obra: página `/obras/[id]/editar` con form React prellenado → PUT.
-- [ ] F1.2 Eliminar obra desde UI con modal de confirmación → DELETE (soft).
-- [ ] F1.3 Reemplazar / eliminar imagen desde el detalle (endpoints ya existen).
-- [ ] F1.4 CRUD de técnicas en UI (listar, editar, eliminar con aviso si tiene obras).
-- [ ] F1.5 Filtros de catálogo: técnica, estado, rango de precio (query params ya soportados).
-- [ ] F1.6 Dashboard `/dashboard`: totales, vendidas, valor de inventario, obras en préstamo.
-- [ ] F1.7 Página `/exposiciones` en el front (hoy da 404): listar, crear, asignar obras, checklist.
-- [ ] F1.8 Limpieza de warnings (utcnow, session.query) + tests de los endpoints PUT/DELETE de técnicas.
+### ✅ FASE 1 — CRUD completo y pulido (COMPLETADA)
+- [x] F1.1 Editar obra: página `/obras/[id]/editar` con form React prellenado → PUT con FormData.
+- [x] F1.2 Eliminar obra desde UI con modal de confirmación → DELETE (soft).
+- [x] F1.3 Reemplazar / eliminar imagen desde el formulario de edición (PUT ya lo maneja).
+- [x] F1.4 CRUD de técnicas en UI (listar, editar, eliminar con aviso si tiene obras).
+- [x] F1.5 Filtros de catálogo: técnica, estado, rango de precio, búsqueda (query params + debounce).
+- [x] F1.6 Dashboard `/dashboard`: KPI cards + gráficos Chart.js (pie de estados, bar de técnicas).
+- [ ] F1.7 (OPCIONAL) Página `/exposiciones` en el front (hoy da 404): listar, crear, asignar obras, checklist.
+- [ ] F1.8 (OPCIONAL) Limpieza de warnings (utcnow, session.query) + tests adicionales.
 
-### 🟡 FASE 2 — Autenticación y roles
+### 🟡 FASE 2 — Autenticación y roles (SIGUIENTE PRIORIDAD)
 - Modelo `Usuario` (email único, hash bcrypt/argon2, rol enum) + JWT access/refresh.
 - Dependencias de autorización (`require_role(...)`) por endpoint.
 - Matriz de permisos: Admin (todo) · Curador (catálogo+exposiciones) · Ventas (ventas+compradores) ·
@@ -179,17 +200,14 @@ art_manager/
 
 ## 7. PRÓXIMAS TAREAS INMEDIATAS (elegir una por sesión)
 
-**Tarea X — Editar obra (F1.1):** página `/obras/[id]/editar.astro` + isla React reutilizando
-ArtworkForm en modo edición (props `obraInicial`), PUT a `/obras/{id}` (JSON) y subida de imagen
-por separado con POST `/obras/{id}/imagen`. Criterio de aceptación: editar título y foto desde UI
-y verlo reflejado en el detalle.
+**Opción A — Autenticación (Fase 2, recomendada):**
+Implementar modelo Usuario + JWT + middleware de autorización. Empezar con 2 roles (Admin/Curador) y proteger endpoints críticos. Esto habilita todo lo demás.
 
-**Tarea Y — Filtros de catálogo (F1.5):** sidebar con select de técnica, toggle de estado y rango
-de precio; query params leídos en `index.astro` server-side; URLs compartibles (`/?tecnica_id=3`).
+**Opción B — Cambio de estado manual (F1.7 opcional):**
+Agregar dropdown simple en `/obras/[id]` para cambiar estado (disponible/vendida/en_exposicion/en_prestamo) con PUT. Solución "parche" que después reemplazamos en Fase 3 por acciones ricas (registrar venta con comprador, asignar a exposición con fechas, etc.).
 
-**Tarea Z — Auto-clasificación IA (Fase 4 puntual):** botón "Analizar con IA" en el form que envía
-la imagen a GPT-4 Vision y prellena técnica + descripción + año estimado. Requiere clave de API
-por variable de entorno en el backend (proxy), nunca en el front.
+**Opción C — Auto-clasificación IA (Fase 4 puntual, el "wow factor"):**
+Botón "Analizar con IA" en el form que envía la imagen a GPT-4 Vision y prellena técnica + descripción + año estimado. Requiere clave de API por variable de entorno en el backend (proxy), nunca en el front.
 
 ---
 
@@ -209,23 +227,31 @@ cd backend; .\venv\Scripts\activate; pytest tests/ -v
 git add . ; git commit -m "tipo(ámbito): descripción" ; git push origin main
 ```
 
----
 
 ## 9. DECISIONES PENDIENTES
 
-- [ ] Estrategia general: **A** (consolidar: F1→F2→IA puntual, recomendada) · **B** (IA first) · **C** (SaaS/multi-tenant).
-- [ ] Roles reales según el caso de uso concreto del dueño del producto.
-- [ ] Deploy: Railway / Fly.io / VPS; y migración SQLite → PostgreSQL para producción.
-- [ ] Dominio y marca del producto.
-
----
+- Estrategia general: A (consolidar: F1→F2→IA puntual, recomendada) · B (IA first) · C (SaaS/multi-tenant).
+- Roles reales según el caso de uso concreto del dueño del producto.
+- Deploy: Railway / Fly.io / VPS; y migración SQLite → PostgreSQL para producción.
+- Dominio y marca del producto.
 
 ## 10. CHANGELOG DE HITOS
 
-- **Día 1:** Monorepo + Docker Compose + hot reload real · fix bug GET /tecnicas/{id} con TDD ·
-  SSR del detalle de obra · formulario de creación con upsert de técnica e imagen ·
-  CORS + fix volumen shadowing · seed automático · **suite de 15/15 tests**.
+### Día 2 — Cierre de Fase 1: CRUD completo + Dashboard
+- **Backend**: PUT /obras/{id} con FormData (reemplazo de imagen en la misma operación) + 3 tests nuevos (9/9 en test_obras.py).
+- **Backend**: CRUD completo de técnicas con validación de obras asociadas (no se puede borrar si tiene obras).
+- **Backend**: Filtros avanzados en GET /obras/ (estado, técnica, precio, búsqueda en título/notas).
+- **Backend**: DashboardService con métricas agregadas (totales, valor inventario, top técnicas) + endpoint GET /dashboard/stats.
+- **Frontend**: Formulario de edición reutilizable (ArtworkForm con modo create/edit).
+- **Frontend**: Botón de eliminación con modal de confirmación (DeleteArtworkButton).
+- **Frontend**: Toolbar compacta de filtros con debounce (CatalogFilters).
+- **Frontend**: Dashboard con KPI cards + Chart.js (pie de estados, bar de técnicas).
+- **Frontend**: Navegación global en Layout (Obras, Dashboard, Técnicas, Exposiciones, + Nueva Obra).
+- **Arquitectura**: Decisión de mover gestión de imagen al formulario de edición (mejor separación de concerns).
 
----
+### Día 1 — MVP funcional + Tests
+- Monorepo + Docker Compose + hot reload real · fix bug GET /tecnicas/{id} con TDD ·
+SSR del detalle de obra · formulario de creación con upsert de técnica e imagen ·
+CORS + fix volumen shadowing · seed automático · **suite de 15/15 tests**.
 
-*Fin del documento. Actualizar al cerrar cada fase.*
+Fin del documento. Actualizar al cerrar cada fase.
