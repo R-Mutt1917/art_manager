@@ -7,8 +7,8 @@ from sqlmodel import Session
 
 from app.database import engine, create_db_and_tables
 from app.models import *  # noqa: F401,F403 - registra todos los modelos
-from app.routers import obras, tecnicas, exposiciones, compradores, prestamos, dashboard
-from app.seed import seed_database
+from app.routers import obras, tecnicas, exposiciones, compradores, prestamos, dashboard, auth
+from app.seed import seed_database, seed_admin_user
 from app.core.config import settings
 
 
@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
 
     with Session(engine) as session:
         seed_database(session)
+        seed_admin_user(session)
 
     yield
 
@@ -51,6 +52,7 @@ app.include_router(exposiciones.router)
 app.include_router(compradores.router)
 app.include_router(prestamos.router)
 app.include_router(dashboard.router)
+app.include_router(auth.router)
 
 @app.get("/", tags=["Root"])
 def root():
