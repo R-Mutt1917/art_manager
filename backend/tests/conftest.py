@@ -1,6 +1,6 @@
 import pytest
 import os
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine, select
 from fastapi.testclient import TestClient
 
 # 1. Importamos la app y los modelos
@@ -65,3 +65,41 @@ def client():
     """Cliente de prueba."""
     with TestClient(fastapi_app) as c:
         yield c
+
+@pytest.fixture
+def auth_headers(client: TestClient) -> dict:
+    """
+    Retorna headers de autorización para un usuario ADMIN.
+    Uso: client.post("/obras/", data=..., headers=auth_headers)
+    """
+    # Registrar un usuario admin para tests
+    r = client.post("/auth/register", json={
+        "email": "test_admin@example.com",
+        "nombre": "Test Admin",
+        "password": "testpass123",
+    })
+    
+    # Si ya existe (409), ignorar
+    if r.status_code == 409:
+        pass
+    
+    # Actualizar rol a ADMIN directamente en la BD (porque register siempre crea VIEWER)
+    with Session(engine) as session:
+        from app.models.usuario import Usuario, RolUsuario
+        usuario = session.exec(
+            select(Usuario).where(Usuario.email == "test_admin@example.com")
+        ).first()
+        if usuario:
+            usuario.rol = RolUsuario.ADMIN
+            session.add(usuario)
+            session.commit()
+    
+    # Login para obtener token
+    r = client.post("/auth/login", json={
+        "email": "test_admin@example.com",
+        "password": "testpass123",
+    })
+    assert r.status_code == 200, r.json()
+    
+    token = r.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

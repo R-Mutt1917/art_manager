@@ -9,9 +9,11 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.models.obra import Obra, EstadoObra
 from app.models.tecnica import Tecnica
+from app.models.usuario import Usuario, RolUsuario
 from app.schemas.obra import ObraCreate, ObraUpdate, ObraRead
 from app.services.obra_service import ObraService
 from app.services.image_service import guardar_imagen, eliminar_imagen
+from app.core.dependencies import require_role
 
 router = APIRouter(prefix="/obras", tags=["Obras"])
 
@@ -23,7 +25,12 @@ def get_obra_service(session: Session = Depends(get_session)) -> ObraService:
 # CREATE
 # ==========================================
 
-@router.post("/", response_model=ObraRead, status_code=201)
+@router.post(
+        "/", 
+        response_model=ObraRead, 
+        status_code=201,
+        dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.CURADOR))]
+)
 def crear_obra(
     titulo: str = Form(...),
     anio: int = Form(...),
@@ -108,7 +115,11 @@ def obtener_obra(obra_id: int, service: ObraService = Depends(get_obra_service))
 # UPDATE (Camino A: acepta FormData)
 # ==========================================
 
-@router.put("/{obra_id}", response_model=ObraRead)
+@router.put(
+        "/{obra_id}", 
+        response_model=ObraRead,
+        dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.CURADOR))]
+)
 def actualizar_obra(
     obra_id: int,
     titulo: str = Form(...),
@@ -174,7 +185,10 @@ def actualizar_obra(
 # DELETE (Soft delete)
 # ==========================================
 
-@router.delete("/{obra_id}")
+@router.delete(
+    "/{obra_id}",
+    dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.CURADOR))]
+)
 def eliminar_obra(obra_id: int, service: ObraService = Depends(get_obra_service)):
     """Soft delete: Marca la obra como inactiva sin borrarla de la BD."""
     return service.eliminar_logico(obra_id)

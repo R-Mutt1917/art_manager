@@ -22,10 +22,10 @@ PNG_1x1 = (
 # Helpers
 # ==========================================
 
-def _crear_tecnica(client: TestClient, nombre: str | None = None) -> tuple[int, str]:
+def _crear_tecnica(client: TestClient, nombre: str | None = None, headers: dict = None) -> tuple[int, str]:
     """Crea una técnica y devuelve (id, nombre)."""
     nombre = nombre or f"Técnica {uuid.uuid4().hex[:8]}"
-    r = client.post("/tecnicas/", json={"nombre": nombre, "descripcion": "Test"})
+    r = client.post("/tecnicas/", json={"nombre": nombre, "descripcion": "Test"}, headers=headers or {})
     assert r.status_code == 201, r.json()
     return r.json()["id"], nombre
 
@@ -44,11 +44,11 @@ def _form_obra(**overrides) -> dict:
     return data
 
 
-def _crear_obra(client: TestClient, tecnica_nombre: str, **overrides) -> dict:
+def _crear_obra(client: TestClient, tecnica_nombre: str, headers: dict = None, **overrides) -> dict:
     """Helper: crea una obra con FormData y devuelve el JSON de respuesta."""
     data = _form_obra(tecnica=tecnica_nombre)
     data.update(overrides)
-    r = client.post("/obras/", data=data)
+    r = client.post("/obras/", data=data, headers=headers or {})
     assert r.status_code == 201, r.json()
     return r.json()
 
@@ -57,22 +57,23 @@ def _crear_obra(client: TestClient, tecnica_nombre: str, **overrides) -> dict:
 # Tests de CREACIÓN
 # ==========================================
 
-def test_crear_obra(client: TestClient):
+def test_crear_obra(client: TestClient, auth_headers):
     """Crear una obra con una técnica existente, sin imagen."""
-    _, nombre = _crear_tecnica(client)
-    data = _crear_obra(client, nombre, titulo="Atardecer en el Puerto")
+    _, nombre = _crear_tecnica(client, headers=auth_headers)
+    data = _crear_obra(client, nombre, headers=auth_headers, titulo="Atardecer en el Puerto")
     assert data["titulo"] == "Atardecer en el Puerto"
     assert data["precio"] == 1500.0
 
 
-def test_crear_obra_con_imagen(client: TestClient):
+def test_crear_obra_con_imagen(client: TestClient, auth_headers: dict):
     """Subir una imagen y verificar que se guarda y se vincula."""
-    _, nombre = _crear_tecnica(client)
+    _, nombre = _crear_tecnica(client, headers=auth_headers)
 
     r = client.post(
         "/obras/",
         data=_form_obra(titulo="Obra con foto", tecnica=nombre),
         files={"imagen": ("foto.png", io.BytesIO(PNG_1x1), "image/png")},
+        headers=auth_headers
     )
 
     assert r.status_code == 201, r.json()
@@ -85,17 +86,17 @@ def test_crear_obra_con_imagen(client: TestClient):
     ruta.unlink(missing_ok=True)
 
 
-def test_crear_obra_con_tecnica_inexistente_la_crea(client: TestClient):
+def test_crear_obra_con_tecnica_inexistente_la_crea(client: TestClient, auth_headers):
     """Si la técnica no existe, se crea automáticamente."""
     nombre_unico = f"Técnica auto {uuid.uuid4().hex[:8]}"
-    data = _crear_obra(client, nombre_unico, titulo="Obra nueva")
+    data = _crear_obra(client, nombre_unico, headers=auth_headers, titulo="Obra nueva")
 
     r_tec = client.get(f"/tecnicas/{data['tecnica_id']}")
     assert r_tec.status_code == 200
     assert r_tec.json()["nombre"] == nombre_unico
 
 
-def test_crear_obra_sin_tecnica_devuelve_422(client: TestClient):
+def test_crear_obra_sin_tecnica_devuelve_422(client: TestClient, auth_headers):
     """El campo 'tecnica' es obligatorio."""
     payload = {
         "titulo": "Obra sin técnica",
@@ -103,7 +104,7 @@ def test_crear_obra_sin_tecnica_devuelve_422(client: TestClient):
         "dimensiones": "30x30 cm",
         # Falta 'tecnica' intencionalmente
     }
-    r = client.post("/obras/", data=payload)
+    r = client.post("/obras/", data=payload, headers=auth_headers)
     assert r.status_code == 422
 
 
@@ -111,25 +112,25 @@ def test_crear_obra_sin_tecnica_devuelve_422(client: TestClient):
 # Tests de LISTADO y DELETE
 # ==========================================
 
-def test_listar_obras(client: TestClient):
+def test_listar_obras(client: TestClient, auth_headers):
     """Listar refleja las obras creadas."""
-    _, nombre = _crear_tecnica(client)
+    _, nombre = _crear_tecnica(client, headers=auth_headers)
     antes = len(client.get("/obras/").json())
 
     for i in range(2):
-        _crear_obra(client, nombre, titulo=f"Obra {i}")
+        _crear_obra(client, nombre, headers=auth_headers, titulo=f"Obra {i}")
 
     despues = client.get("/obras/").json()
     assert len(despues) == antes + 2
 
 
-def test_soft_delete(client: TestClient):
+def test_soft_delete(client: TestClient, auth_headers):
     """Eliminar una obra la oculta del listado y del GET por ID."""
-    _, nombre = _crear_tecnica(client)
-    obra = _crear_obra(client, nombre, titulo="Obra a eliminar")
+    _, nombre = _crear_tecnica(client, headers=auth_headers)
+    obra = _crear_obra(client, nombre, headers=auth_headers, titulo="Obra a eliminar")
     obra_id = obra["id"]
 
-    r_delete = client.delete(f"/obras/{obra_id}")
+    r_delete = client.delete(f"/obras/{obra_id}", headers=auth_headers)
     assert r_delete.status_code == 200, r_delete.json()
     assert "dada de baja" in r_delete.json()["mensaje"]
 
@@ -143,15 +144,16 @@ def test_soft_delete(client: TestClient):
 # Tests de ACTUALIZACIÓN (PUT)
 # ==========================================
 
-def test_actualizar_obra_conserva_imagen_si_no_se_envia_nueva(client: TestClient):
+def test_actualizar_obra_conserva_imagen_si_no_se_envia_nueva(client: TestClient, auth_headers):
     """PUT actualiza campos y conserva la imagen si no se envía una nueva."""
-    _, nombre = _crear_tecnica(client)
+    _, nombre = _crear_tecnica(client, headers=auth_headers)
 
     # 1. Crear obra CON imagen
     r = client.post(
         "/obras/",
         data=_form_obra(titulo="Obra original", tecnica=nombre),
         files={"imagen": ("foto.png", io.BytesIO(PNG_1x1), "image/png")},
+        headers=auth_headers,
     )
     assert r.status_code == 201, r.json()
     obra = r.json()
@@ -171,6 +173,7 @@ def test_actualizar_obra_conserva_imagen_si_no_se_envia_nueva(client: TestClient
             "tecnica": nombre,
             # NO enviamos 'imagen'
         },
+        headers=auth_headers,
     )
     assert r_put.status_code == 200, r_put.json()
     actualizada = r_put.json()
@@ -188,18 +191,20 @@ def test_actualizar_obra_conserva_imagen_si_no_se_envia_nueva(client: TestClient
     ruta.unlink(missing_ok=True)
 
 
-def test_actualizar_obra_con_tecnica_nueva_la_crea(client: TestClient):
+def test_actualizar_obra_con_tecnica_nueva_la_crea(client: TestClient, auth_headers):
     """PUT con una técnica inexistente la crea y la asigna (upsert)."""
-    _, nombre = _crear_tecnica(client)
+    _, nombre = _crear_tecnica(client, headers=auth_headers)
     obra = client.post(
         "/obras/",
-        data=_form_obra(titulo="Obra X", tecnica=nombre)
+        data=_form_obra(titulo="Obra X", tecnica=nombre),
+        headers=auth_headers,
     ).json()
 
     tecnica_nueva = f"Técnica edición {uuid.uuid4().hex[:8]}"
     r_put = client.put(
         f"/obras/{obra['id']}",
         data=_form_obra(titulo="Obra X editada", tecnica=tecnica_nueva),
+        headers=auth_headers,
     )
     assert r_put.status_code == 200, r_put.json()
 
@@ -209,8 +214,52 @@ def test_actualizar_obra_con_tecnica_nueva_la_crea(client: TestClient):
     assert r_tec.json()["nombre"] == tecnica_nueva
 
 
-def test_actualizar_obra_inexistente_devuelve_404(client: TestClient):
+def test_actualizar_obra_inexistente_devuelve_404(client: TestClient, auth_headers):
     """PUT a un ID que no existe debe devolver 404."""
-    _, nombre = _crear_tecnica(client)
-    r = client.put("/obras/99999", data=_form_obra(tecnica=nombre))
+    _, nombre = _crear_tecnica(client, headers=auth_headers)
+    r = client.put("/obras/99999", data=_form_obra(tecnica=nombre), headers=auth_headers)
     assert r.status_code == 404
+
+
+# ==========================================
+# Tests de AUTORIZACIÓN (nuevos)
+# ==========================================
+
+def test_crear_obra_sin_token_devuelve_401(client: TestClient):
+    """POST sin token de autenticación debe devolver 403 (HTTPBearer estándar)."""
+    _, nombre = _crear_tecnica(client, headers=_get_admin_headers(client))
+    r = client.post("/obras/", data=_form_obra(tecnica=nombre))
+    assert r.status_code == 403  # ← cambiado de 401 a 403. Nota de arquitectura: 401 es para "no autenticado", 403 es para "autenticado pero sin permisos"
+
+
+def test_crear_obra_con_rol_viewer_devuelve_403(client: TestClient):
+    """POST con rol VIEWER (solo lectura) debe devolver 403."""
+    # Registrar un usuario VIEWER
+    r = client.post("/auth/register", json={
+        "email": "viewer@example.com",
+        "nombre": "Viewer",
+        "password": "viewer123",
+    })
+    assert r.status_code == 201
+
+    # Login para obtener token
+    r = client.post("/auth/login", json={
+        "email": "viewer@example.com",
+        "password": "viewer123",
+    })
+    assert r.status_code == 200
+    viewer_headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    # Intentar crear obra (debería fallar con 403)
+    _, nombre = _crear_tecnica(client, headers=_get_admin_headers(client))
+    r = client.post("/obras/", data=_form_obra(tecnica=nombre), headers=viewer_headers)
+    assert r.status_code == 403
+
+
+def _get_admin_headers(client: TestClient) -> dict:
+    """Helper para obtener headers de admin en tests."""
+    r = client.post("/auth/login", json={
+        "email": "admin@artmanager.com",
+        "password": "admin123",
+    })
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
