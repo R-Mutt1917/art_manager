@@ -4,6 +4,8 @@ from typing import List
 
 from app.database import get_session
 from app.schemas.prestamo import PrestamoCreate, PrestamoRead, DevolucionPrestamo
+from app.models.usuario import RolUsuario
+from app.core.dependencies import require_role
 from app.services.prestamo_service import PrestamoService
 
 router = APIRouter(prefix="/prestamos", tags=["Préstamos"])
@@ -11,7 +13,16 @@ router = APIRouter(prefix="/prestamos", tags=["Préstamos"])
 def get_prestamo_service(session: Session = Depends(get_session)) -> PrestamoService:
     return PrestamoService(session)
 
-@router.post("/", response_model=PrestamoRead, status_code=201)
+
+# ==========================================
+# CREAR PRÉSTAMO (solo ADMIN — acción sensible)
+# ==========================================
+@router.post(
+    "/", 
+    response_model=PrestamoRead, 
+    status_code=201,
+    dependencies=[Depends(require_role(RolUsuario.ADMIN))]
+)
 def crear_prestamo(
     prestamo_data: PrestamoCreate,
     service: PrestamoService = Depends(get_prestamo_service)
@@ -19,7 +30,15 @@ def crear_prestamo(
     """Registra un nuevo préstamo y cambia el estado de la obra a 'en_prestamo'."""
     return service.registrar_prestamo(prestamo_data)
 
-@router.post("/{prestamo_id}/devolucion", response_model=dict)
+
+# ==========================================
+# REGISTRAR DEVOLUCIÓN (solo ADMIN)
+# ==========================================
+@router.post(
+    "/{prestamo_id}/devolucion", 
+    response_model=dict,
+    dependencies=[Depends(require_role(RolUsuario.ADMIN))]
+)
 def registrar_devolucion(
     prestamo_id: int,
     devolucion_data: DevolucionPrestamo,
@@ -28,7 +47,15 @@ def registrar_devolucion(
     """Registra la devolución de la obra y la libera para estar disponible nuevamente."""
     return service.registrar_devolucion(prestamo_id, devolucion_data)
 
-@router.get("/activos", response_model=List[PrestamoRead])
+
+# ==========================================
+# LISTAR ACTIVOS (ADMIN, CURADOR)
+# ==========================================
+@router.get(
+    "/activos", 
+    response_model=List[PrestamoRead],
+    dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.CURADOR))]
+)
 def listar_prestamos_activos(
     service: PrestamoService = Depends(get_prestamo_service)
 ):

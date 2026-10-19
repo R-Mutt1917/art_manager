@@ -10,6 +10,8 @@ from app.schemas.comprador import (
     CompradorConObrasRead,
     VentaCreate
 )
+from app.models.usuario import RolUsuario
+from app.core.dependencies import require_role
 from app.services.comprador_service import CompradorService
 
 router = APIRouter(prefix="/compradores", tags=["Compradores"])
@@ -17,7 +19,16 @@ router = APIRouter(prefix="/compradores", tags=["Compradores"])
 def get_comprador_service(session: Session = Depends(get_session)) -> CompradorService:
     return CompradorService(session)
 
-@router.post("/", response_model=CompradorRead, status_code=201)
+
+# ==========================================
+# CREATE (ADMIN, ASESOR)
+# ==========================================
+@router.post(
+    "/", 
+    response_model=CompradorRead, 
+    status_code=201,
+    dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.ASESOR))]
+)
 def crear_comprador(
     comprador_data: CompradorCreate,
     service: CompradorService = Depends(get_comprador_service)
@@ -25,6 +36,10 @@ def crear_comprador(
     """Crea un nuevo comprador."""
     return service.crear_comprador(comprador_data)
 
+
+# ==========================================
+# READ (público)
+# ==========================================
 @router.get("/", response_model=List[CompradorRead])
 def listar_compradores(
     activo: Optional[bool] = Query(None, description="Filtrar por estado activo"),
@@ -32,6 +47,7 @@ def listar_compradores(
 ):
     """Lista todos los compradores."""
     return service.obtener_todos(activo=activo)
+
 
 @router.get("/{comprador_id}", response_model=CompradorConObrasRead)
 def obtener_comprador(
@@ -53,22 +69,6 @@ def obtener_comprador(
         "obras_compradas": obras
     }
 
-@router.put("/{comprador_id}", response_model=CompradorRead)
-def actualizar_comprador(
-    comprador_id: int,
-    comprador_data: CompradorUpdate,
-    service: CompradorService = Depends(get_comprador_service)
-):
-    """Actualiza los datos de un comprador."""
-    return service.actualizar_comprador(comprador_id, comprador_data)
-
-@router.delete("/{comprador_id}")
-def eliminar_comprador(
-    comprador_id: int,
-    service: CompradorService = Depends(get_comprador_service)
-):
-    """Soft delete de un comprador (solo si no tiene obras asociadas)."""
-    return service.eliminar_logico(comprador_id)
 
 @router.get("/{comprador_id}/compras", response_model=List[dict])
 def historial_de_compras(
@@ -78,7 +78,47 @@ def historial_de_compras(
     """Obtiene el historial completo de compras de un comprador."""
     return service.obtener_historial_compras(comprador_id)
 
-@router.post("/ventas/registrar", status_code=201)
+
+# ==========================================
+# UPDATE (ADMIN, ASESOR)
+# ==========================================
+@router.put(
+    "/{comprador_id}", 
+    response_model=CompradorRead,
+    dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.ASESOR))]
+)
+def actualizar_comprador(
+    comprador_id: int,
+    comprador_data: CompradorUpdate,
+    service: CompradorService = Depends(get_comprador_service)
+):
+    """Actualiza los datos de un comprador."""
+    return service.actualizar_comprador(comprador_id, comprador_data)
+
+
+# ==========================================
+# DELETE (solo ADMIN — acción destructiva)
+# ==========================================
+@router.delete(
+    "/{comprador_id}",
+    dependencies=[Depends(require_role(RolUsuario.ADMIN))]
+)
+def eliminar_comprador(
+    comprador_id: int,
+    service: CompradorService = Depends(get_comprador_service)
+):
+    """Soft delete de un comprador (solo si no tiene obras asociadas)."""
+    return service.eliminar_logico(comprador_id)
+
+
+# ==========================================
+# REGISTRAR VENTA (ADMIN, ASESOR)
+# ==========================================
+@router.post(
+    "/ventas/registrar", 
+    status_code=201,
+    dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.ASESOR))]
+)
 def registrar_venta(
     venta_data: VentaCreate,
     service: CompradorService = Depends(get_comprador_service)
