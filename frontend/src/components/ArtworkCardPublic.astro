@@ -1,0 +1,51 @@
+---
+// Tarjeta de obra para catálogo público (sin datos sensibles).
+// Diseño: placeholder borroso en lugar de imagen HD.
+
+interface Props {
+  obra: {
+    id: number;
+    titulo: string;
+    anio: number;
+    estado: string;
+  };
+  tecnicaNombre?: string;
+}
+
+const { obra, tecnicaNombre = 'Técnica no especificada' } = Astro.props;
+
+// Traducir estado a texto legible
+const estadoLegible = obra.estado === 'disponible' ? 'Disponible' 
+  : obra.estado === 'vendida' ? 'Vendida' 
+  : obra.estado === 'en_exposicion' ? 'En exposición' 
+  : 'En préstamo';
+---
+
+<a href="/login" class="group block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100">
+  <!-- Placeholder borroso en lugar de imagen HD -->
+  <figure class="aspect-[4/3] bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center relative overflow-hidden">
+    <div class="absolute inset-0 backdrop-blur-sm bg-gray-200/50"></div>
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 text-gray-400 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+    <span class="absolute bottom-2 right-2 text-xs text-gray-500 bg-white/80 px-2 py-1 rounded relative z-10">
+      Imagen disponible para miembros
+    </span>
+  </figure>
+
+  <div class="p-5">
+    <h3 class="font-serif text-lg font-bold text-text-primary mb-2 group-hover:text-accent transition-colors">
+      {obra.titulo}
+    </h3>
+    <p class="text-sm text-text-secondary mb-3">{obra.anio}</p>
+    <p class="text-xs text-text-secondary mb-2">Técnica: {tecnicaNombre}</p>
+    <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+      <span class="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-text-secondary">
+        {estadoLegible}
+      </span>
+      <span class="text-xs text-accent font-medium">
+        Inicia sesión →
+      </span>
+    </div>
+  </div>
+</a>
