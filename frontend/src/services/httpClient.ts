@@ -1,29 +1,32 @@
-// Interceptor HTTP: adjunta el token automáticamente y maneja errores de auth.
+// Interceptor HTTP: adjunta el token y maneja errores.
+// SSR-Safe: elige la URL correcta según si corre en servidor o navegador.
 
 import { getAccessToken, limpiarTokens } from './auth';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+// 1. Detectar el entorno
+const isServer = typeof window === 'undefined';
 
-/**
- * Wrapper de fetch que:
- * 1. Adjunta el token de autenticación automáticamente
- * 2. Maneja errores 401/403 redirigiendo a /login
- * 3. Maneja errores de red de forma centralizada
- */
+// 2. Elegir la URL correcta:
+// - Servidor (Docker): usa la red interna 'http://backend:8000'
+// - Cliente (Navegador): usa la URL pública 'http://localhost:8000'
+const API_URL = isServer 
+  ? (import.meta.env.API_URL || 'http://backend:8000') 
+  : (import.meta.env.PUBLIC_API_URL || 'http://localhost:8000');
+
 export async function httpClient<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getAccessToken();
-
-  // Construir headers (merge con los que ya vengan)
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
 
-  // Adjuntar token si existe
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  // 3. Solo adjuntar token si estamos en el navegador (el servidor no tiene localStorage)
+  if (!isServer) {
+    const token = getAccessToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
   }
 
   // Si no es FormData, agregar Content-Type JSON
@@ -31,15 +34,18 @@ export async function httpClient<T = any>(
     headers['Content-Type'] = 'application/json';
   }
 
+  // 4. Hacer la petición a la URL correcta
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
   });
 
-  // Manejar errores de autenticación
+  // 5. Manejar errores de autenticación (solo en cliente podemos redirigir)
   if (response.status === 401 || response.status === 403) {
-    limpiarTokens();
-    window.location.href = '/login';
+    if (!isServer) {
+      limpiarTokens();
+      window.location.href = '/login';
+    }
     throw new Error('Sesión expirada o sin permisos');
   }
 

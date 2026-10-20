@@ -1,20 +1,42 @@
-// frontend/src/components/HeaderNav.tsx
 import { useState, useEffect } from 'react';
-import { estaAutenticado, logout } from '../services/auth';
+
+// Claves de localStorage (las mismas que en auth.ts)
+const ACCESS_TOKEN_KEY = 'artmanager_access_token';
 
 export default function HeaderNav() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // Al montar el componente, verificamos si hay token
+  // Al montar el componente (SOLO en cliente), verificamos el token
   useEffect(() => {
-    setIsLoggedIn(estaAutenticado());
+    setMounted(true);
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    setIsLoggedIn(token !== null);
   }, []);
 
   // Función para cerrar sesión
   const handleLogout = () => {
-    logout();
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem('artmanager_refresh_token');
     setIsLoggedIn(false);
+    window.location.href = '/';
   };
+
+  // Mientras no esté montado en el cliente, mostramos el estado "no logueado"
+  // Esto evita que el SSR intente acceder a localStorage
+  if (!mounted) {
+    return (
+      <nav aria-label="Navegación principal" className="flex items-center gap-6">
+        <ul className="hidden md:flex gap-6 text-sm font-medium text-text-secondary">
+          <li><a href="/" className="hover:text-text-primary transition-colors">Inicio</a></li>
+          <li><a href="/catalogo" className="hover:text-text-primary transition-colors">Catálogo</a></li>
+        </ul>
+        <a href="/login" className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg hover:bg-accent/90 transition-colors">
+          Iniciar Sesión
+        </a>
+      </nav>
+    );
+  }
 
   return (
     <nav aria-label="Navegación principal" className="flex items-center gap-6">
