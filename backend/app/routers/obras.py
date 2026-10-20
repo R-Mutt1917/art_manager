@@ -117,11 +117,11 @@ def listar_obras_publicas(
     service: ObraService = Depends(get_obra_service)
 ):
     """
-    Catálogo público: solo muestra datos no sensibles.
+    Catálogo público: muestra datos básicos + imagen con blur.
     - SIN precios
-    - SIN imágenes HD (placeholder borroso)
     - SIN notas del curador
     - SIN dimensiones exactas
+    - IMAGEN: URL incluida, pero el frontend aplica blur CSS
     """
     obras = service.obtener_todas(
         estado=estado,
@@ -129,7 +129,6 @@ def listar_obras_publicas(
         busqueda=busqueda
     )
     
-    # Transformar a formato público (ocultar datos sensibles)
     obras_publicas = []
     for obra in obras:
         obras_publicas.append({
@@ -138,8 +137,7 @@ def listar_obras_publicas(
             "anio": obra.anio,
             "tecnica_id": obra.tecnica_id,
             "estado": obra.estado.value if hasattr(obra.estado, 'value') else str(obra.estado),
-            "imagen_url": None,  # Ocultar imagen HD
-            # NO incluir: precio, dimensiones, notas, comprador_id
+            "imagen_url": obra.imagen_url,  # ✅ Ahora sí incluimos la URL
         })
     
     return obras_publicas
