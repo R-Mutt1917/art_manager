@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import HeaderNav from '../components/HeaderNav.tsx'; // ← Importamos la isla de React
 
 interface Props {
   title: string;
@@ -23,42 +24,18 @@ const { title, description = "Gestor de Obras de Arte profesional" } = Astro.pro
     <!-- Header semántico -->
     <header class="sticky top-0 z-50 bg-bg-primary/90 backdrop-blur-md border-b border-gray-200">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <!-- Logo -->
         <a href="/" class="font-serif text-2xl font-bold tracking-tight text-text-primary hover:text-accent transition-colors">
           Art Manager
         </a>
         
-        <nav aria-label="Navegación principal" class="flex items-center gap-6">
-          <ul class="hidden md:flex gap-6 text-sm font-medium text-text-secondary">
-            <li>
-              <a href="/" class="hover:text-text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-1">
-                Inicio
-              </a>
-            </li>
-            <li>
-              <a href="/catalogo" class="hover:text-text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-1">
-                Catálogo
-              </a>
-            </li>
-            <li>
-              <a href="/dashboard" class="hover:text-text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-1">
-                Dashboard
-              </a>
-            </li>
-            <li>
-              <a href="/tecnicas" class="hover:text-text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-1">
-                Técnicas
-              </a>
-            </li>
-          </ul>
-          
-          <!-- Botón de acción principal -->
-          <a 
-            href="/crear" 
-            class="px-4 py-2 bg-text-primary text-white text-sm font-semibold rounded-lg hover:bg-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-          >
-            + Nueva Obra
-          </a>
-        </nav>
+        <!-- 
+          ISLA DE REACT: 
+          client:load hidrata este componente inmediatamente en el navegador.
+          Esto permite que el menú cambie dinámicamente al hacer login/logout 
+          sin recargar la página.
+        -->
+        <HeaderNav client:load />
       </div>
     </header>
 
