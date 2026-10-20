@@ -105,6 +105,44 @@ def listar_obras(
         busqueda=busqueda
     )
 
+# ==========================================
+# PUBLIC CATALOG (sin datos sensibles)
+# ==========================================
+
+@router.get("/publicas", response_model=List[dict])
+def listar_obras_publicas(
+    estado: Optional[EstadoObra] = Query(None, description="Filtrar por estado"),
+    tecnica_id: Optional[int] = Query(None, description="Filtrar por ID de técnica"),
+    busqueda: Optional[str] = Query(None, description="Buscar en título"),
+    service: ObraService = Depends(get_obra_service)
+):
+    """
+    Catálogo público: solo muestra datos no sensibles.
+    - SIN precios
+    - SIN imágenes HD (placeholder borroso)
+    - SIN notas del curador
+    - SIN dimensiones exactas
+    """
+    obras = service.obtener_todas(
+        estado=estado,
+        tecnica_id=tecnica_id,
+        busqueda=busqueda
+    )
+    
+    # Transformar a formato público (ocultar datos sensibles)
+    obras_publicas = []
+    for obra in obras:
+        obras_publicas.append({
+            "id": obra.id,
+            "titulo": obra.titulo,
+            "anio": obra.anio,
+            "tecnica_id": obra.tecnica_id,
+            "estado": obra.estado.value if hasattr(obra.estado, 'value') else str(obra.estado),
+            "imagen_url": None,  # Ocultar imagen HD
+            # NO incluir: precio, dimensiones, notas, comprador_id
+        })
+    
+    return obras_publicas
 
 @router.get("/{obra_id}", response_model=ObraRead)
 def obtener_obra(obra_id: int, service: ObraService = Depends(get_obra_service)):
