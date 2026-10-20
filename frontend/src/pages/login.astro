@@ -1,11 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-// SSR deshabilitado para esta página (no necesitamos datos del server al cargar)
+// Este código se ejecuta en el SERVIDOR antes de enviar el HTML al navegador.
 export const prerender = false;
-
-// Si el usuario ya está logueado (tiene token), lo redirigimos al catálogo
-// Esta lógica la implementaremos en F2F-7, por ahora es un TODO
 ---
 
 <Layout title="Iniciar sesión" description="Accede a Art Manager">
@@ -25,12 +22,12 @@ export const prerender = false;
       <!-- Tarjeta del formulario -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
         
-        <!-- Mensaje de error (lo activaremos en F2F-2) -->
-        <div id="error-message" class="hidden mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
-          <!-- Se llenará dinámicamente -->
+        <!-- Mensaje de error (oculto por defecto) -->
+        <div id="error-message" class="hidden mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200" role="alert">
+          <!-- Se llena dinámicamente desde el script -->
         </div>
 
-        <form id="login-form" class="space-y-5">
+        <form id="login-form" class="space-y-5" novalidate>
           <!-- Campo email -->
           <div>
             <label for="email" class="block text-sm font-medium text-text-secondary mb-2">
@@ -73,7 +70,7 @@ export const prerender = false;
           </button>
         </form>
 
-        <!-- Credenciales de prueba (solo desarrollo) -->
+        <!-- Credenciales de prueba -->
         <div class="mt-6 pt-6 border-t border-gray-100">
           <p class="text-xs text-text-secondary text-center mb-2">
             Credenciales de prueba (desarrollo):
@@ -85,7 +82,6 @@ export const prerender = false;
         </div>
       </div>
 
-      <!-- Link a registro (futuro, lo haremos después) -->
       <p class="text-center text-sm text-text-secondary mt-6">
         ¿No tenés cuenta? 
         <a href="#" class="text-accent hover:underline font-medium">
@@ -94,4 +90,56 @@ export const prerender = false;
       </p>
     </div>
   </div>
+
+  <!-- 
+    ESTE SCRIPT SE EJECUTA EN EL NAVEGADOR (CLIENTE).
+    type="module" es OBLIGATORIO para poder usar "import".
+  -->
+  <script type="module">
+    import { login } from '../services/auth.ts';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('login-form');
+      const errorMsg = document.getElementById('error-message');
+      const submitBtn = document.getElementById('submit-btn');
+
+      if (!form || !errorMsg || !submitBtn) {
+        console.error('Elementos del formulario no encontrados');
+        return;
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault(); // DETIENE el envío tradicional del navegador
+
+        const formData = new FormData(form);
+        const email = String(formData.get('email') || '');
+        const password = String(formData.get('password') || '');
+
+        if (!email || !password) {
+          errorMsg.textContent = 'Email y contraseña son requeridos';
+          errorMsg.classList.remove('hidden');
+          return;
+        }
+
+        // Estado de carga
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Iniciando sesión...';
+        errorMsg.classList.add('hidden');
+
+        try {
+          // Llamada real al backend
+          await login(email, password);
+          
+          // Éxito: redirección al catálogo
+          window.location.href = '/';
+        } catch (error) {
+          // Error: mostrar mensaje y reactivar botón
+          errorMsg.textContent = error instanceof Error ? error.message : 'Error de conexión';
+          errorMsg.classList.remove('hidden');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Iniciar sesión';
+        }
+      });
+    });
+  </script>
 </Layout>
