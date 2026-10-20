@@ -1,0 +1,97 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// SSR deshabilitado para esta página (no necesitamos datos del server al cargar)
+export const prerender = false;
+
+// Si el usuario ya está logueado (tiene token), lo redirigimos al catálogo
+// Esta lógica la implementaremos en F2F-7, por ahora es un TODO
+---
+
+<Layout title="Iniciar sesión" description="Accede a Art Manager">
+  <div class="min-h-[70vh] flex items-center justify-center px-4">
+    <div class="w-full max-w-md">
+      
+      <!-- Header del formulario -->
+      <div class="text-center mb-8">
+        <h1 class="font-serif text-4xl font-bold text-text-primary mb-2">
+          Bienvenido
+        </h1>
+        <p class="text-text-secondary">
+          Inicia sesión para gestionar tu catálogo de obras
+        </p>
+      </div>
+
+      <!-- Tarjeta del formulario -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+        
+        <!-- Mensaje de error (lo activaremos en F2F-2) -->
+        <div id="error-message" class="hidden mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
+          <!-- Se llenará dinámicamente -->
+        </div>
+
+        <form id="login-form" class="space-y-5">
+          <!-- Campo email -->
+          <div>
+            <label for="email" class="block text-sm font-medium text-text-secondary mb-2">
+              Correo electrónico
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="tu@email.com"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+            />
+          </div>
+
+          <!-- Campo contraseña -->
+          <div>
+            <label for="password" class="block text-sm font-medium text-text-secondary mb-2">
+              Contraseña
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              autocomplete="current-password"
+              placeholder="••••••••"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+            />
+          </div>
+
+          <!-- Botón submit -->
+          <button
+            type="submit"
+            id="submit-btn"
+            class="w-full py-3 bg-text-primary text-white font-semibold rounded-lg hover:bg-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50"
+          >
+            Iniciar sesión
+          </button>
+        </form>
+
+        <!-- Credenciales de prueba (solo desarrollo) -->
+        <div class="mt-6 pt-6 border-t border-gray-100">
+          <p class="text-xs text-text-secondary text-center mb-2">
+            Credenciales de prueba (desarrollo):
+          </p>
+          <div class="bg-gray-50 rounded-lg p-3 text-xs font-mono text-text-secondary">
+            <div>admin@artmanager.com</div>
+            <div>admin123</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Link a registro (futuro, lo haremos después) -->
+      <p class="text-center text-sm text-text-secondary mt-6">
+        ¿No tenés cuenta? 
+        <a href="#" class="text-accent hover:underline font-medium">
+          Contactá al administrador
+        </a>
+      </p>
+    </div>
+  </div>
+</Layout>
