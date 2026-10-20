@@ -1,8 +1,9 @@
-// Obtenemos la URL del backend desde las variables de entorno
-const API_URL = import.meta.env.API_URL || import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+// Servicio de obras, técnicas y compradores usando el interceptor HTTP.
+
+import { http } from './httpClient';
 
 // ==========================================
-// INTERFACES (definen la forma de los datos)
+// Interfaces
 // ==========================================
 
 export interface Obra {
@@ -31,92 +32,45 @@ export interface Comprador {
 }
 
 // ==========================================
-// FUNCIONES DE OBRAS
+// Obras
 // ==========================================
 
-/**
- * Obtiene todas las obras desde el backend.
- */
 export async function getObras(): Promise<Obra[]> {
-  try {
-    const response = await fetch(`${API_URL}/obras/`);
-    
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error("Error al conectar con el backend:", error);
-    return []; // Retornamos array vacío para que la UI no se rompa
-  }
+  return http.get<Obra[]>('/obras/');
 }
 
-/**
- * Obtiene una obra específica por su ID desde el backend.
- */
 export async function getObraById(id: number): Promise<Obra | null> {
   try {
-    const response = await fetch(`${API_URL}/obras/${id}`);
-    
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error(`Error al obtener la obra ${id}:`, error);
+    return await http.get<Obra>(`/obras/${id}`);
+  } catch {
     return null;
   }
 }
 
 // ==========================================
-// FUNCIONES DE TÉCNICAS
+// Técnicas
 // ==========================================
 
-/**
- * Obtiene una técnica por su ID.
- */
+export async function getTecnicas(): Promise<Tecnica[]> {
+  return http.get<Tecnica[]>('/tecnicas/');
+}
+
 export async function getTecnica(id: number): Promise<Tecnica | null> {
   try {
-    const response = await fetch(`${API_URL}/tecnicas/${id}`);
-    if (!response.ok) return null;
-    return await response.json();
-  } catch (error) {
-    console.error(`Error al obtener técnica ${id}:`, error);
+    return await http.get<Tecnica>(`/tecnicas/${id}`);
+  } catch {
     return null;
   }
 }
 
-/**
- * Obtiene todas las técnicas del catálogo.
- */
-export async function getTecnicas(): Promise<Tecnica[]> {
-  try {
-    const response = await fetch(`${API_URL}/tecnicas/`);
-    if (!response.ok) return [];
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching tecnicas:", error);
-    return [];
-  }
-}
-
 // ==========================================
-// FUNCIONES DE COMPRADORES
+// Compradores
 // ==========================================
 
-/**
- * Obtiene un comprador por su ID.
- */
 export async function getComprador(id: number): Promise<Comprador | null> {
   try {
-    const response = await fetch(`${API_URL}/compradores/${id}`);
-    if (!response.ok) return null;
-    return await response.json();
-  } catch (error) {
-    console.error(`Error al obtener comprador ${id}:`, error);
+    return await http.get<Comprador>(`/compradores/${id}`);
+  } catch {
     return null;
   }
 }

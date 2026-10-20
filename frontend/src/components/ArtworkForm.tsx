@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
+import { http } from '../services/httpClient'; // ← NUEVO: Usamos el interceptor
 
 interface Tecnica { id: number; nombre: string; }
 
@@ -37,13 +38,9 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
     notas: initialData?.notas ?? '',
   });
 
-  // Cargar técnicas
+  // Cargar técnicas usando el interceptor
   useEffect(() => {
-    fetch(`${API_URL}/tecnicas/`)
-      .then((res) => {
-        if (!res.ok) throw new Error('No se pudo conectar con el backend');
-        return res.json();
-      })
+    http.get<Tecnica[]>('/tecnicas/')
       .then((data) => setTecnicas(data))
       .catch((err) => setError(err.message));
   }, []);
@@ -78,29 +75,22 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
       data.append('tecnica', tecnicaInput);
       if (imagen) data.append('imagen', imagen);
 
-      const url = isEditMode
-        ? `${API_URL}/obras/${initialData!.id}`
-        : `${API_URL}/obras/`;
-      const method = isEditMode ? 'PUT' : 'POST';
+      // ← NUEVO: Usamos el interceptor que adjunta el token automáticamente
+      const response = isEditMode
+        ? await http.put(`/obras/${initialData!.id}`, data)
+        : await http.post('/obras/', data);
 
-      const response = await fetch(url, { method, body: data });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => null);
-        throw new Error(errData?.detail || 'Error al guardar la obra');
-      }
-
-      const obraGuardada = await response.json();
       setSuccess(true);
 
       if (isEditMode) {
-        setTimeout(() => { window.location.href = `/obras/${obraGuardada.id}`; }, 1000);
+        setTimeout(() => { window.location.href = `/obras/${response.id}`; }, 1000);
       } else {
         setFormData({ titulo: '', anio: new Date().getFullYear().toString(), dimensiones: '', precio: '', notas: '' });
         setTecnicaInput('');
         setImagen(null);
       }
     } catch (err: any) {
+      // El interceptor ya redirige a /login si es 401/403, pero si es otro error (ej: 422), lo mostramos
       setError(err.message);
     } finally {
       setLoading(false);
@@ -194,7 +184,6 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
         <div>
           <label htmlFor="imagen" className={labelClass}>Fotografía</label>
 
-          {/* Preview de imagen actual (solo en modo edición y sin imagen nueva seleccionada) */}
           {isEditMode && initialData?.imagen_url && !imagen && (
             <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <p className="text-xs text-text-secondary mb-2 uppercase tracking-wide font-semibold">Imagen actual:</p>
