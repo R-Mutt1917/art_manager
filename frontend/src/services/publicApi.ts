@@ -15,9 +15,9 @@ export interface PublicObra {
   anio: number;
   tecnica_id: number | null;
   estado: string;
+  imagen_url: string | null;
   // ⚠️ Intencionalmente NO incluye:
   // - precio (dato comercial sensible)
-  // - imagen_url (protección de derechos de autor)
   // - dimensiones (dato técnico sensible)
   // - notas (información curatorial privada)
   // - comprador_id (privacidad del comprador)

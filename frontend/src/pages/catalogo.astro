@@ -1,61 +1,79 @@
 ---
+// Catálogo público: muestra obras con datos velados (sin precios, imágenes borrosas).
+
 import Layout from '../layouts/Layout.astro';
-import ArtworkCard from '../components/ArtworkCard.astro';
-import CatalogFilters from '../components/CatalogFilters.tsx';
-import type { Obra } from '../services/api';
+import ArtworkCardPublic from '../components/ArtworkCardPublic.astro';
+import type { PublicObra, PublicTecnica } from '../services/publicApi';
 
 export const prerender = false;
 
-// 1. Leer los filtros desde la URL (query params)
+// 1. Leer query params de la URL para filtros
 const url = new URL(Astro.request.url);
 const queryParams = {
   tecnica: url.searchParams.get('tecnica'),
   estado: url.searchParams.get('estado'),
-  precio_min: url.searchParams.get('precio_min'),
-  precio_max: url.searchParams.get('precio_max'),
   busqueda: url.searchParams.get('busqueda'),
 };
 
-// 2. Construir la URL del backend con esos filtros
+// 2. Construir URL con query params para el backend
 const API_URL = import.meta.env.API_URL || 'http://localhost:8000';
 const params = new URLSearchParams();
 Object.entries(queryParams).forEach(([key, value]) => {
   if (value) params.set(key, value);
 });
-const apiUrl = params.toString()
-  ? `${API_URL}/obras/?${params.toString()}`
-  : `${API_URL}/obras/`;
 
-// 3. Fetch de obras ya filtradas (server-side)
-let obras: Obra[] = [];
+const apiUrl = params.toString()
+  ? `${API_URL}/obras/publicas/?${params.toString()}`
+  : `${API_URL}/obras/publicas/`;
+
+// 3. Fetch de obras públicas (SSR)
+let obras: PublicObra[] = [];
 try {
   const response = await fetch(apiUrl);
   if (response.ok) {
     obras = await response.json();
   }
 } catch (error) {
-  console.error('Error al obtener obras:', error);
+  console.error('Error al obtener obras públicas:', error);
 }
 
-// 4. ¿Hay filtros activos? (para el mensaje de "sin resultados")
+// 4. Fetch de técnicas (para mostrar nombres en las tarjetas)
+let tecnicas: PublicTecnica[] = [];
+try {
+  const response = await fetch(`${API_URL}/tecnicas/`);
+  if (response.ok) {
+    tecnicas = await response.json();
+  }
+} catch (error) {
+  console.error('Error al obtener técnicas:', error);
+}
+
+// Crear mapa de técnicas (id -> nombre) para lookup rápido
+const tecnicasMap = new Map(tecnicas.map((t: PublicTecnica) => [t.id, t.nombre]));
+
 const hayFiltros = Object.values(queryParams).some((v) => v);
 ---
 
-<Layout title="Catálogo" description="Colección de obras de arte contemporáneo">
-
+<Layout title="Catálogo de Obras" description="Explora nuestra colección de arte contemporáneo">
+  
   <section class="mb-8 text-center max-w-2xl mx-auto">
     <h1 class="font-serif text-4xl md:text-5xl font-bold mb-4">Catálogo de Obras</h1>
-    <p class="text-text-secondary">Explora nuestra colección curada de obras de arte contemporáneo.</p>
+    <p class="text-text-secondary">
+      Explora nuestra colección curada de obras de arte contemporáneo.
+      <span class="block mt-2 text-sm text-accent font-medium">
+        Inicia sesión para ver precios, imágenes HD y detalles completos
+      </span>
+    </p>
   </section>
-
-  <!-- Toolbar compacta de filtros (entre el título y las obras) -->
-  <CatalogFilters client:load />
 
   {obras.length > 0 ? (
     <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-      {obras.map((obra: Obra) => (
+      {obras.map((obra) => (
         <li>
-          <ArtworkCard obra={obra} />
+          <ArtworkCardPublic 
+            obra={obra} 
+            tecnicaNombre={String(obra.tecnica_id ? tecnicasMap.get(obra.tecnica_id) || 'Técnica no especificada' : 'Técnica no especificada')} 
+          />
         </li>
       ))}
     </ul>
@@ -66,8 +84,8 @@ const hayFiltros = Object.values(queryParams).some((v) => v);
           ? 'No hay obras que coincidan con los filtros seleccionados.'
           : 'No hay obras disponibles en este momento.'}
       </p>
-      <a href="/" class="text-accent hover:underline mt-2 inline-block">
-        {hayFiltros ? 'Limpiar filtros' : 'Agrega algunas desde el backend →'}
+      <a href="/catalogo" class="text-accent hover:underline mt-2 inline-block">
+        {hayFiltros ? 'Limpiar filtros' : 'Volver al catálogo'}
       </a>
     </div>
   )}
