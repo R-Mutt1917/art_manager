@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlmodel import Session
 
 from app.database import get_session
@@ -14,15 +14,23 @@ def get_auth_service(session: Session = Depends(get_session)) -> AuthService:
 
 
 @router.post("/register", response_model=UsuarioRead, status_code=201)
-def register(data: UsuarioCreate, service: AuthService = Depends(get_auth_service)):
+def register(
+    data: UsuarioCreate,
+    request: Request,
+    service: AuthService = Depends(get_auth_service),
+):
     """Registro público. El rol siempre entra como VIEWER (seguridad por defecto)."""
-    return service.registrar(data)
+    return service.registrar(data, request)
 
 
 @router.post("/login", response_model=TokenPair)
-def login(data: LoginRequest, service: AuthService = Depends(get_auth_service)):
+def login(
+    data: LoginRequest,
+    request: Request,
+    service: AuthService = Depends(get_auth_service),
+):
     """Valida credenciales y devuelve access + refresh tokens."""
-    return service.login(data)
+    return service.login(data, request)
 
 
 @router.post("/refresh", response_model=TokenPair)

@@ -5,8 +5,9 @@ from app.models.prestamo import Prestamo
 from app.models.exposicion import Exposicion
 from app.models.obra_exposicion import ObraExposicion
 from app.models.obra import Obra, EstadoObra
+from app.models.audit_log import AuditLog, TipoEvento
 
 __all__ = [
     "Tecnica", "Comprador", "Prestamo", 
-    "Exposicion", "ObraExposicion", "Obra", "EstadoObra"
+    "Exposicion", "ObraExposicion", "Obra", "EstadoObra", "AuditLog", "TipoEvento"
 ]
