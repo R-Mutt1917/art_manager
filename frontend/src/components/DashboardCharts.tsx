@@ -10,6 +10,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
+import { http } from '../services/httpClient'; // ← NUEVO: Usamos el interceptor
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -21,27 +22,39 @@ interface DashboardStats {
   top_tecnicas: Array<{ nombre: string; cantidad: number }>;
 }
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
-
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(value);
 
 export default function DashboardCharts() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // ← NUEVO: Manejo de errores
 
   useEffect(() => {
-    fetch(`${API_URL}/dashboard/stats`)
-      .then((res) => res.json())
+    // Usamos http.get en lugar de fetch nativo para que adjunte el token automáticamente
+    http.get<DashboardStats>('/dashboard/stats')
       .then((data) => {
         setStats(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error('Error al cargar dashboard:', err);
+        setError(err.message || 'No se pudieron cargar las métricas');
+        setLoading(false);
+      });
   }, []);
 
-  if (loading || !stats) {
+  if (loading) {
     return <div className="text-center py-12 text-text-secondary">Cargando métricas...</div>;
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="text-center py-12 text-red-600">
+        <p>{error || 'Error al cargar el dashboard.'}</p>
+        <p className="text-sm text-text-secondary mt-2">Asegúrate de haber iniciado sesión.</p>
+      </div>
+    );
   }
 
   const estadoLabels: Record<string, string> = {
@@ -92,7 +105,7 @@ export default function DashboardCharts() {
         </div>
         <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
           <p className="text-sm text-text-secondary mb-1">Obras disponibles</p>
-          <p className="text-3xl font-bold text-text-primary">{stats.obras_por_estado.disponible}</p>
+          <p className="text-3xl font-bold text-text-primary">{stats.obras_por_estado.disponible || 0}</p>
         </div>
       </div>
 
