@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 const ACCESS_TOKEN_KEY = 'artmanager_access_token';
 const REFRESH_TOKEN_KEY = 'artmanager_refresh_token';
 
-// Función segura: lee el token solo si estamos en el navegador
 const checkAuth = () => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem(ACCESS_TOKEN_KEY) !== null;
@@ -12,11 +11,9 @@ const checkAuth = () => {
 };
 
 export default function HeaderNav() {
-  // Inicializamos el estado leyendo directamente (elimina el retraso del useEffect)
   const [isLoggedIn, setIsLoggedIn] = useState(checkAuth());
 
   useEffect(() => {
-    // Doble verificación por si el estado cambió entre el render inicial y la hidratación
     setIsLoggedIn(checkAuth());
   }, []);
 
@@ -28,7 +25,6 @@ export default function HeaderNav() {
   };
 
   return (
-    // Agregamos transition-all para que cualquier cambio de tamaño sea suave
     <nav aria-label="Navegación principal" className="flex items-center gap-6 transition-all duration-300">
       <ul className="hidden md:flex gap-6 text-sm font-medium text-text-secondary">
         <li>
@@ -37,12 +33,12 @@ export default function HeaderNav() {
           </a>
         </li>
         <li>
-          <a href="/catalogo" className="hover:text-text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-1">
-            Catálogo
+          {/* Si está logueado, va al inventario privado; si no, al catálogo público */}
+          <a href={isLoggedIn ? '/inventario' : '/catalogo'} className="hover:text-text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-1">
+            {isLoggedIn ? 'Inventario' : 'Catálogo'}
           </a>
         </li>
         
-        {/* Links SOLO para usuarios logueados */}
         {isLoggedIn && (
           <>
             <li>
@@ -59,7 +55,6 @@ export default function HeaderNav() {
         )}
       </ul>
 
-      {/* Botones de Acción */}
       <div className="flex items-center gap-3 transition-all duration-300">
         {isLoggedIn ? (
           <>
