@@ -1,3 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.db
+test_database.db
+
+# Node
+node_modules/
+dist/
+.pnpm-store/
+
 # Bases de datos SQLite (viven en local, no en el repo)
 *.db
 *.sqlite3
@@ -16,6 +29,10 @@ frontend/node_modules/
 # Configuraciones de IDE
 .vscode/
 .idea/
+
+# Uploads (imágenes de usuarios)
+backend/app/uploads/*
+!backend/app/uploads/.gitkeep
 
 # Caché y builds
 __pycache__/
