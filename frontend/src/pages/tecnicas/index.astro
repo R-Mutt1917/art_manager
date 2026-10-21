@@ -63,9 +63,7 @@ const tecnicas = await getTecnicas();
     Script mejorado: usa httpClient para adjuntar el token automáticamente.
     type="module" es obligatorio para poder usar imports.
   -->
-  <script type="module">
-    import { http } from '../../services/httpClient.ts';
-
+  <script>
     document.querySelectorAll<HTMLButtonElement>('.delete-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
@@ -74,10 +72,21 @@ const tecnicas = await getTecnicas();
 
         if (!confirm(`¿Eliminar "${nombre}"?\n\nNo se eliminará si tiene obras asociadas.`)) return;
 
+        const token = localStorage.getItem('artmanager_access_token');
+
         try {
-          const data = await http.delete(`/tecnicas/${id}`);
-          alert(data.mensaje);
-          window.location.reload();
+          const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/tecnicas/${id}`, {
+            method: 'DELETE',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          const data = await response.json();
+
+          if (!response.ok) {
+            alert(`Error: ${data.detail ?? 'desconocido'}`);
+          } else {
+            alert(data.mensaje);
+            window.location.reload();
+          }
         } catch (error) {
           alert(error instanceof Error ? error.message : 'Error de conexión al eliminar.');
         }
