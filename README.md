@@ -16,6 +16,7 @@ multi-usuario, auditoría completa y arquitectura preparada para escalar a multi
 
 - [Visión del Producto](#-visión-del-producto)
 - [Características](#-características)
+- [Capturas del Producto](#-capturas-del-producto)
 - [Arquitectura](#️-arquitectura)
 - [Inicio Rápido](#-inicio-rápido)
 - [Estructura del Proyecto](#-estructura-del-proyecto)
@@ -65,6 +66,17 @@ Art Manager reemplaza planillas Excel y cuadernos por un sistema profesional con
 - 🎨 Gestión de artistas por galería
 - 🔗 URLs semánticas (`/galeria-sur/artistas`)
 - 💳 Planes de suscripción
+---
+
+## 📸 Capturas del Producto
+
+| Landing pública | Catálogo velado (SEO) |
+|---|---|
+| ![Landing](docs/screenshots/landing.png) | ![Catálogo](docs/screenshots/catalogo-velado.png) |
+
+| Inventario privado | Dashboard con métricas |
+|---|---|
+| ![Inventario](docs/screenshots/inventario.png) | ![Dashboard](docs/screenshots/dashboard.png) |
 
 ---
 
