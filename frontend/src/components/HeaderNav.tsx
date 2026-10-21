@@ -1,45 +1,35 @@
 import { useState, useEffect } from 'react';
 
-// Claves de localStorage (las mismas que en auth.ts)
 const ACCESS_TOKEN_KEY = 'artmanager_access_token';
+const REFRESH_TOKEN_KEY = 'artmanager_refresh_token';
+
+// Función segura: lee el token solo si estamos en el navegador
+const checkAuth = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(ACCESS_TOKEN_KEY) !== null;
+  }
+  return false;
+};
 
 export default function HeaderNav() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // Inicializamos el estado leyendo directamente (elimina el retraso del useEffect)
+  const [isLoggedIn, setIsLoggedIn] = useState(checkAuth());
 
-  // Al montar el componente (SOLO en cliente), verificamos el token
   useEffect(() => {
-    setMounted(true);
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-    setIsLoggedIn(token !== null);
+    // Doble verificación por si el estado cambió entre el render inicial y la hidratación
+    setIsLoggedIn(checkAuth());
   }, []);
 
-  // Función para cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem('artmanager_refresh_token');
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     setIsLoggedIn(false);
     window.location.href = '/';
   };
 
-  // Mientras no esté montado en el cliente, mostramos el estado "no logueado"
-  // Esto evita que el SSR intente acceder a localStorage
-  if (!mounted) {
-    return (
-      <nav aria-label="Navegación principal" className="flex items-center gap-6">
-        <ul className="hidden md:flex gap-6 text-sm font-medium text-text-secondary">
-          <li><a href="/" className="hover:text-text-primary transition-colors">Inicio</a></li>
-          <li><a href="/catalogo" className="hover:text-text-primary transition-colors">Catálogo</a></li>
-        </ul>
-        <a href="/login" className="px-4 py-2 bg-accent text-white text-sm font-semibold rounded-lg hover:bg-accent/90 transition-colors">
-          Iniciar Sesión
-        </a>
-      </nav>
-    );
-  }
-
   return (
-    <nav aria-label="Navegación principal" className="flex items-center gap-6">
+    // Agregamos transition-all para que cualquier cambio de tamaño sea suave
+    <nav aria-label="Navegación principal" className="flex items-center gap-6 transition-all duration-300">
       <ul className="hidden md:flex gap-6 text-sm font-medium text-text-secondary">
         <li>
           <a href="/" className="hover:text-text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-1">
@@ -70,7 +60,7 @@ export default function HeaderNav() {
       </ul>
 
       {/* Botones de Acción */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 transition-all duration-300">
         {isLoggedIn ? (
           <>
             <a 
