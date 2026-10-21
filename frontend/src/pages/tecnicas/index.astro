@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { getTecnicas } from '../../services/api';
+import RouteGuard from '../../components/RouteGuard.tsx';
 
 export const prerender = false;
 
@@ -8,6 +9,8 @@ const tecnicas = await getTecnicas();
 ---
 
 <Layout title="Gestión de Técnicas" description="Administra las técnicas artísticas">
+  <RouteGuard client:only="react" />
+  
   <div class="max-w-5xl mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-8">
       <div>
@@ -56,8 +59,13 @@ const tecnicas = await getTecnicas();
     )}
   </div>
 
-  <script>
-    // Tipamos el querySelectorAll para que TS sepa que son botones (resuelve el error de dataset)
+  <!-- 
+    Script mejorado: usa httpClient para adjuntar el token automáticamente.
+    type="module" es obligatorio para poder usar imports.
+  -->
+  <script type="module">
+    import { http } from '../../services/httpClient.ts';
+
     document.querySelectorAll<HTMLButtonElement>('.delete-btn').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
@@ -67,17 +75,9 @@ const tecnicas = await getTecnicas();
         if (!confirm(`¿Eliminar "${nombre}"?\n\nNo se eliminará si tiene obras asociadas.`)) return;
 
         try {
-          const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/tecnicas/${id}`, {
-            method: 'DELETE',
-          });
-          const data = await response.json();
-
-          if (!response.ok) {
-            alert(`Error: ${data.detail ?? 'desconocido'}`);
-          } else {
-            alert(data.mensaje);
-            window.location.reload();
-          }
+          const data = await http.delete(`/tecnicas/${id}`);
+          alert(data.mensaje);
+          window.location.reload();
         } catch (error) {
           alert(error instanceof Error ? error.message : 'Error de conexión al eliminar.');
         }

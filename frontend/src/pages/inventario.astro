@@ -1,14 +1,18 @@
 ---
-// Catálogo PRIVADO: solo accesible para usuarios logueados.
-// Carga los datos del lado del cliente para respetar el token de localStorage.
-
 import Layout from '../layouts/Layout.astro';
 import InventarioClient from '../components/InventarioClient.tsx';
+import RouteGuard from '../components/RouteGuard.tsx';
 
 export const prerender = false;
 ---
 
 <Layout title="Inventario de Obras" description="Gestión completa de tu colección de arte">
+  <!-- 
+    RouteGuard: componente invisible que redirige a /login si no hay token.
+    client:only="react" garantiza que solo se ejecute en el navegador (no SSR).
+  -->
+  <RouteGuard client:only="react" />
+  
   <div class="mb-8">
     <h1 class="font-serif text-4xl md:text-5xl font-bold text-text-primary mb-2">
       Inventario de Obras
@@ -18,9 +22,5 @@ export const prerender = false;
     </p>
   </div>
 
-  <!-- 
-    client:load hidrata el componente inmediatamente.
-    El componente verifica el token y carga los datos privados.
-  -->
   <InventarioClient client:load />
 </Layout>

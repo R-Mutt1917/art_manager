@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import DeleteArtworkButton from '../../components/DeleteArtworkButton.tsx';
 import { getObraById, getTecnica, getComprador } from '../../services/api';
+import RouteGuard from '../../components/RouteGuard.tsx';
 
 export const prerender = false;
 
@@ -31,6 +32,12 @@ const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisici�
 ---
 
 <Layout title={obra.titulo} description={`Detalles de la obra ${obra.titulo}`}>
+  
+  <!-- 
+    PROTECCIÓN DE RUTA: redirige a /login si no hay token.
+    Debe estar DENTRO del Layout para que se ejecute su useEffect.
+  -->
+  <RouteGuard client:only="react" />
   
   <nav class="mb-8 flex flex-wrap items-center gap-3" aria-label="Navegación de acciones">
     <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-2 py-1">

@@ -1,9 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import ArtworkForm from '../components/ArtworkForm.tsx';
+import RouteGuard from '../components/RouteGuard.tsx';
+
+export const prerender = false;
 ---
 
 <Layout title="Crear Nueva Obra" description="Formulario para registrar una nueva obra de arte en el catálogo">
+  <RouteGuard client:only="react" />
   
   <nav class="mb-8" aria-label="Navegación de retorno">
     <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-2 py-1 -ml-2">
@@ -12,10 +16,5 @@ import ArtworkForm from '../components/ArtworkForm.tsx';
     </a>
   </nav>
 
-  <!-- 
-    client:load hidrata el componente con React inmediatamente al cargar la página.
-    Es perfecto para formularios que el usuario verá y usará de inmediato.
-  -->
   <ArtworkForm client:load />
-
 </Layout>

@@ -3,6 +3,7 @@ export const prerender = false;
 
 import Layout from '../../../layouts/Layout.astro';
 import ArtworkForm from '../../../components/ArtworkForm.tsx';
+import RouteGuard from '../../../components/RouteGuard.tsx';
 import { getObraById, getTecnica } from '../../../services/api';
 
 const { id } = Astro.params;
@@ -34,6 +35,9 @@ const initialData = {
 ---
 
 <Layout title={`Editar: ${obra.titulo}`} description={`Editar obra ${obra.titulo}`}>
+  <!-- Protege la ruta: redirige a /login si no hay token -->
+  <RouteGuard client:only="react" />
+  
   <nav class="mb-8" aria-label="Navegación de retorno">
     <a href={`/obras/${obra.id}`} class="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-accent transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
