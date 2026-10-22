@@ -67,6 +67,18 @@ def client():
         yield c
 
 @pytest.fixture
+def session():
+    """
+    Sesión de BD directa para tests de modelo (sin HTTP).
+    Útil para tests unitarios de lógica de dominio que no necesitan
+    pasar por los endpoints.
+    
+    Las tablas ya están creadas por setup_database (autouse=True).
+    """
+    with Session(engine) as session:
+        yield session
+
+@pytest.fixture
 def auth_headers(client: TestClient) -> dict:
     """
     Retorna headers de autorización para un usuario ADMIN.
