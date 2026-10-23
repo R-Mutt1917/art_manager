@@ -39,19 +39,23 @@ fastapi_app.dependency_overrides[get_session] = get_test_session
 def setup_database():
     """
     Crea las tablas en el archivo de prueba ANTES de cada test,
-    siembra datos iniciales necesarios (admin) y las borra DESPUÉS.
-
+    siembra datos iniciales necesarios (admin, galería demo, artista demo)
+    y las borra DESPUÉS.
+    
     Esto garantiza que cada test empieza con el mismo estado predecible.
     """
     SQLModel.metadata.create_all(bind=engine)
-
+    
     # Seed de datos iniciales necesarios para tests
     with Session(engine) as session:
-        from app.seed import seed_admin_user
+        from app.seed import seed_admin_user, seed_galeria_demo, seed_artista_demo
         seed_admin_user(session)
-
+        # Fase 3: multi-tenancy
+        galeria_demo = seed_galeria_demo(session)
+        seed_artista_demo(session, galeria_demo)
+    
     yield
-
+    
     SQLModel.metadata.drop_all(bind=engine)
 
 @pytest.fixture(scope="session", autouse=True)

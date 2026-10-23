@@ -13,7 +13,11 @@ class ObraCreate(BaseModel):
     tecnica_id: Optional[int] = None
     comprador_id: Optional[int] = None
     fecha_venta: Optional[date] = None
-    imagen_url: Optional[str] = None  # ← NUEVO: necesario para vincular la foto
+    imagen_url: Optional[str] = None  # ← necesario para vincular la foto
+    
+    # Multi-tenancy (opcionales, se asignan por defecto si no vienen)
+    galeria_id: Optional[int] = None
+    artista_id: Optional[int] = None
 
 class ObraUpdate(BaseModel):
     titulo: Optional[str] = Field(None, min_length=1, max_length=200)
@@ -25,7 +29,11 @@ class ObraUpdate(BaseModel):
     tecnica_id: Optional[int] = None
     comprador_id: Optional[int] = None
     fecha_venta: Optional[date] = None
-    imagen_url: Optional[str] = None  # ← NUEVO: para permitir actualizar foto vía PUT
+    imagen_url: Optional[str] = None  # ← para permitir actualizar foto vía PUT
+    
+    # Multi-tenancy (opcionales)
+    galeria_id: Optional[int] = None
+    artista_id: Optional[int] = None
 
 class ObraRead(BaseModel):
     id: int
@@ -41,5 +49,7 @@ class ObraRead(BaseModel):
     fecha_actualizacion: datetime
     tecnica_id: Optional[int]
     comprador_id: Optional[int]
+    galeria_id: Optional[int] = None
+    artista_id: Optional[int] = None
     
     model_config = {"from_attributes": True}

@@ -4,6 +4,8 @@ from sqlmodel import Session, select
 from fastapi import HTTPException
 
 from app.models.obra import Obra, EstadoObra
+from app.models.galeria import Galeria
+from app.models.artista import Artista
 from app.schemas.obra import ObraCreate, ObraUpdate
 
 class ObraService:
@@ -60,19 +62,62 @@ class ObraService:
         return obra
     
     def crear(self, obra_data: ObraCreate) -> Obra:
-        """Crea una nueva obra con validaciones de negocio."""
+        """
+        Crea una nueva obra con validaciones de negocio.
+        Si no se especifica galeria_id, asigna la Galería Demo automáticamente.
+        """
         # Validación: Precio no negativo
         if obra_data.precio is not None and obra_data.precio < 0:
             raise HTTPException(status_code=400, detail="El precio no puede ser negativo")
         
         # Validación: Si está vendida, debe tener fecha
-        if obra_data.estado == "vendida" and not obra_data.fecha_venta:
+        if obra_data.estado == EstadoObra.VENDIDA and not obra_data.fecha_venta:
             raise HTTPException(
                 status_code=400, 
                 detail="Una obra vendida debe tener fecha de venta registrada"
             )
         
-        db_obra = Obra.model_validate(obra_data)
+        # === Multi-tenancy: asignar galería demo si no viene especificada ===
+        galeria_id = obra_data.galeria_id
+        artista_id = obra_data.artista_id
+        
+        if galeria_id is None:
+            # Buscar Galería Demo
+            galeria_demo = self.session.exec(
+                select(Galeria).where(Galeria.slug == "galeria-demo")
+            ).first()
+            
+            if galeria_demo:
+                galeria_id = galeria_demo.id
+                
+                # Si no hay artista, asignar Artista Demo
+                if artista_id is None:
+                    artista_demo = self.session.exec(
+                        select(Artista).where(
+                            Artista.galeria_id == galeria_demo.id,
+                            Artista.slug == "artista-demo"
+                        )
+                    ).first()
+                    if artista_demo:
+                        artista_id = artista_demo.id
+        # === Fin multi-tenancy ===
+        
+        # Crear obra con los valores resueltos
+        db_obra = Obra(
+            titulo=obra_data.titulo,
+            anio=obra_data.anio,
+            dimensiones=obra_data.dimensiones,
+            precio=obra_data.precio,
+            estado=obra_data.estado,
+            notas=obra_data.notas,
+            tecnica_id=obra_data.tecnica_id,
+            comprador_id=obra_data.comprador_id,
+            fecha_venta=obra_data.fecha_venta,
+            imagen_url=obra_data.imagen_url,
+            galeria_id=galeria_id,
+            artista_id=artista_id,
+        )
+        
         self.session.add(db_obra)
         self.session.commit()
         self.session.refresh(db_obra)
