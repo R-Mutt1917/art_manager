@@ -10,16 +10,16 @@ from app.database import get_session
 from app.models.obra import Obra, EstadoObra
 from app.models.tecnica import Tecnica
 from app.models.usuario import Usuario, RolUsuario
+from app.models.galeria import Galeria
 from app.schemas.obra import ObraCreate, ObraUpdate, ObraRead
 from app.services.obra_service import ObraService
 from app.services.image_service import guardar_imagen, eliminar_imagen
-from app.core.dependencies import require_role
+from app.core.dependencies import require_role, get_current_galeria
 
 router = APIRouter(prefix="/obras", tags=["Obras"])
 
 def get_obra_service(session: Session = Depends(get_session)) -> ObraService:
     return ObraService(session)
-
 
 # ==========================================
 # CREATE
@@ -38,12 +38,13 @@ def crear_obra(
     precio: Optional[float] = Form(None),
     estado: str = Form("disponible"),
     notas: Optional[str] = Form(None),
-    tecnica: str = Form(...),  # Nombre de la técnica (crea si no existe)
+    tecnica: str = Form(...),
     imagen: Optional[UploadFile] = File(None),
     session: Session = Depends(get_session),
-    service: ObraService = Depends(get_obra_service)
+    service: ObraService = Depends(get_obra_service),
+    galeria: Galeria = Depends(get_current_galeria),  # ← NUEVO
 ):
-    """Crea una obra. Si la técnica no existe, la crea automáticamente."""
+    """Crea una obra en la galería del usuario autenticado."""
     
     # 1. Buscar o crear la técnica
     tecnica_obj = session.exec(select(Tecnica).where(Tecnica.nombre == tecnica)).first()
@@ -63,11 +64,11 @@ def crear_obra(
             session.rollback()
             raise HTTPException(status_code=500, detail=f"Error al guardar imagen: {str(e)}")
     
-    # 3. Crear la obra
+    # 3. Crear la obra (asignada a la galería del usuario)
     try:
         estado_enum = EstadoObra(estado)
     except ValueError:
-        estado_enum = EstadoObra.disponible
+        estado_enum = EstadoObra.DISPONIBLE
 
     obra_data = ObraCreate(
         titulo=titulo,
@@ -80,11 +81,10 @@ def crear_obra(
         imagen_url=imagen_url
     )
     
-    return service.crear(obra_data)
-
+    return service.crear(obra_data, galeria)  # ← NUEVO: pasar galería
 
 # ==========================================
-# READ (con filtros avanzados)
+# READ (con filtros) — filtrado por galería
 # ==========================================
 
 @router.get("/", response_model=List[ObraRead])
@@ -94,10 +94,12 @@ def listar_obras(
     precio_min: Optional[float] = Query(None, ge=0, description="Precio mínimo"),
     precio_max: Optional[float] = Query(None, ge=0, description="Precio máximo"),
     busqueda: Optional[str] = Query(None, description="Buscar en título o notas"),
-    service: ObraService = Depends(get_obra_service)
+    service: ObraService = Depends(get_obra_service),
+    galeria: Galeria = Depends(get_current_galeria),  # ← NUEVO
 ):
-    """Lista obras con filtros avanzados."""
+    """Lista obras DE LA GALERÍA del usuario autenticado."""
     return service.obtener_todas(
+        galeria=galeria,
         estado=estado, 
         tecnica_id=tecnica_id,
         precio_min=precio_min,
@@ -106,7 +108,7 @@ def listar_obras(
     )
 
 # ==========================================
-# PUBLIC CATALOG (sin datos sensibles)
+# PUBLIC CATALOG (sin datos sensibles, sin auth)
 # ==========================================
 
 @router.get("/publicas", response_model=List[dict])
@@ -114,20 +116,26 @@ def listar_obras_publicas(
     estado: Optional[EstadoObra] = Query(None, description="Filtrar por estado"),
     tecnica_id: Optional[int] = Query(None, description="Filtrar por ID de técnica"),
     busqueda: Optional[str] = Query(None, description="Buscar en título"),
-    service: ObraService = Depends(get_obra_service)
+    session: Session = Depends(get_session),
 ):
     """
-    Catálogo público: muestra datos básicos + imagen con blur.
-    - SIN precios
-    - SIN notas del curador
-    - SIN dimensiones exactas
-    - IMAGEN: URL incluida, pero el frontend aplica blur CSS
+    Catálogo público velado (no requiere auth, ve todas las galerías).
+    Muestra datos básicos + imagen con blur.
     """
-    obras = service.obtener_todas(
-        estado=estado,
-        tecnica_id=tecnica_id,
-        busqueda=busqueda
-    )
+    # Query sin filtro de galería (público ve todo)
+    query = select(Obra).where(Obra.activo == True)
+    
+    if estado:
+        query = query.where(Obra.estado == estado)
+    if tecnica_id:
+        query = query.where(Obra.tecnica_id == tecnica_id)
+    if busqueda:
+        termino = f"%{busqueda.lower()}%"
+        query = query.where(
+            (Obra.titulo.ilike(termino)) | (Obra.notas.ilike(termino))
+        )
+    
+    obras = session.exec(query).all()
     
     obras_publicas = []
     for obra in obras:
@@ -137,18 +145,21 @@ def listar_obras_publicas(
             "anio": obra.anio,
             "tecnica_id": obra.tecnica_id,
             "estado": obra.estado.value if hasattr(obra.estado, 'value') else str(obra.estado),
-            "imagen_url": obra.imagen_url,  # ✅ Ahora sí incluimos la URL
+            "imagen_url": obra.imagen_url,
         })
     
     return obras_publicas
 
 @router.get("/{obra_id}", response_model=ObraRead)
-def obtener_obra(obra_id: int, service: ObraService = Depends(get_obra_service)):
-    return service.obtener_por_id(obra_id)
-
+def obtener_obra(
+    obra_id: int,
+    service: ObraService = Depends(get_obra_service),
+    galeria: Galeria = Depends(get_current_galeria),  # ← NUEVO
+):
+    return service.obtener_por_id(obra_id, galeria)
 
 # ==========================================
-# UPDATE (Camino A: acepta FormData)
+# UPDATE (acepta FormData)
 # ==========================================
 
 @router.put(
@@ -165,19 +176,16 @@ def actualizar_obra(
     estado: str = Form("disponible"),
     notas: Optional[str] = Form(None),
     tecnica: str = Form(...),
-    imagen: Optional[UploadFile] = File(None),  # Nueva imagen opcional
+    imagen: Optional[UploadFile] = File(None),
     session: Session = Depends(get_session),
-    service: ObraService = Depends(get_obra_service)
+    service: ObraService = Depends(get_obra_service),
+    galeria: Galeria = Depends(get_current_galeria),  # ← NUEVO
 ):
-    """
-    Actualiza una obra existente.
-    Acepta FormData para permitir cambiar la imagen en la misma operación.
-    Si no se envía imagen, conserva la actual.
-    """
-    # 1. Verificar que la obra existe (lanza 404 si no)
-    obra_existente = service.obtener_por_id(obra_id)
+    """Actualiza una obra (con aislamiento por galería)."""
+    # 1. Verificar que la obra existe Y pertenece a esta galería
+    obra_existente = service.obtener_por_id(obra_id, galeria)
     
-    # 2. Resolver técnica (upsert, igual que en POST)
+    # 2. Resolver técnica (upsert)
     tecnica_obj = session.exec(select(Tecnica).where(Tecnica.nombre == tecnica)).first()
     if not tecnica_obj:
         tecnica_obj = Tecnica(nombre=tecnica, descripcion="Creada desde edición")
@@ -185,7 +193,7 @@ def actualizar_obra(
         session.commit()
         session.refresh(tecnica_obj)
     
-    # 3. Procesar imagen nueva si viene (reemplaza la anterior)
+    # 3. Procesar imagen nueva si viene
     datos_update = {
         "titulo": titulo,
         "anio": anio,
@@ -198,10 +206,9 @@ def actualizar_obra(
     try:
         datos_update["estado"] = EstadoObra(estado)
     except ValueError:
-        datos_update["estado"] = EstadoObra.disponible
+        datos_update["estado"] = EstadoObra.DISPONIBLE
     
     if imagen and imagen.filename:
-        # Borrar imagen anterior del disco si existía
         if obra_existente.imagen_url:
             eliminar_imagen(obra_existente.imagen_url)
         
@@ -210,12 +217,10 @@ def actualizar_obra(
         except Exception as e:
             session.rollback()
             raise HTTPException(status_code=500, detail=f"Error al guardar imagen: {str(e)}")
-    # Si NO viene imagen, no tocamos imagen_url (se conserva la actual)
     
-    # 4. Aplicar la actualización vía service
+    # 4. Aplicar la actualización
     obra_update = ObraUpdate(**datos_update)
-    return service.actualizar(obra_id, obra_update)
-
+    return service.actualizar(obra_id, obra_update, galeria)  # ← NUEVO
 
 # ==========================================
 # DELETE (Soft delete)
@@ -225,6 +230,10 @@ def actualizar_obra(
     "/{obra_id}",
     dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.CURADOR))]
 )
-def eliminar_obra(obra_id: int, service: ObraService = Depends(get_obra_service)):
-    """Soft delete: Marca la obra como inactiva sin borrarla de la BD."""
-    return service.eliminar_logico(obra_id)
+def eliminar_obra(
+    obra_id: int,
+    service: ObraService = Depends(get_obra_service),
+    galeria: Galeria = Depends(get_current_galeria),  # ← NUEVO
+):
+    """Soft delete con aislamiento."""
+    return service.eliminar_logico(obra_id, galeria)

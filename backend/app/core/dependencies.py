@@ -5,9 +5,9 @@ from sqlmodel import Session, select
 from app.core.security import decode_token
 from app.database import get_session
 from app.models.usuario import Usuario, RolUsuario
+from app.models.galeria import Galeria
 
 security = HTTPBearer()
-
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -43,7 +43,6 @@ def get_current_user(
 
     return usuario
 
-
 def require_role(*roles_permitidos: RolUsuario):
     """
     Factory que retorna una dependencia que verifica el rol del usuario.
@@ -60,3 +59,30 @@ def require_role(*roles_permitidos: RolUsuario):
         return current_user
 
     return role_checker
+
+def get_current_galeria(
+    usuario: Usuario = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Galeria:
+    """
+    Devuelve la galería (tenant) del usuario autenticado.
+    
+    Es el CORAZÓN del aislamiento multi-tenant: todos los services
+    la usan para filtrar queries automáticamente por galeria_id.
+    
+    Lanza 403 si el usuario no pertenece a ninguna galería.
+    """
+    if usuario.galeria_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu usuario no pertenece a ninguna galería. Contactá al administrador.",
+        )
+    
+    galeria = session.get(Galeria, usuario.galeria_id)
+    if not galeria or not galeria.activo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu galería no está disponible. Contactá al administrador.",
+        )
+    
+    return galeria
