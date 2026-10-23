@@ -49,19 +49,14 @@ def seed_galeria_demo(session: Session) -> Galeria:
     Crea la Galería Demo por defecto si no existe.
     Esta galería es el "tenant inicial" para todas las obras
     que se crearon antes del sistema multi-tenant.
-    
-    En Fase 3 (multi-tenancy real), cada usuario pertenecerá
-    a su propia galería, pero por ahora usamos esta demo.
     """
-    # Verificar si ya existe
     galeria = session.exec(
         select(Galeria).where(Galeria.slug == "galeria-demo")
     ).first()
-    
+
     if galeria:
         return galeria
-    
-    # Crear galería demo
+
     galeria = Galeria(
         nombre="Galería Demo",
         slug="galeria-demo",
@@ -72,26 +67,21 @@ def seed_galeria_demo(session: Session) -> Galeria:
     session.add(galeria)
     session.commit()
     session.refresh(galeria)
-    
     print("✅ Seed: Galería Demo creada (galeria-demo)")
     return galeria
 
 def seed_artista_demo(session: Session, galeria: Galeria) -> Artista:
-    """
-    Crea un Artista Demo por defecto en la galería especificada.
-    """
-    # Verificar si ya existe
+    """Crea un Artista Demo por defecto en la galería especificada."""
     artista = session.exec(
         select(Artista).where(
             Artista.galeria_id == galeria.id,
             Artista.slug == "artista-demo"
         )
     ).first()
-    
+
     if artista:
         return artista
-    
-    # Crear artista demo
+
     artista = Artista(
         galeria_id=galeria.id,
         nombre="Artista Demo",
@@ -103,29 +93,59 @@ def seed_artista_demo(session: Session, galeria: Galeria) -> Artista:
     session.add(artista)
     session.commit()
     session.refresh(artista)
-    
     print("✅ Seed: Artista Demo creado (artista-demo)")
     return artista
 
 def migrar_obras_a_galeria_demo(session: Session, galeria: Galeria, artista: Artista):
     """
     Migra todas las obras que no tienen galeria_id asignándolas
-    a la Galería Demo. Esto es necesario para obras creadas antes
-    del sistema multi-tenant.
-    
-    Una vez migradas, todas las obras tienen un tenant válido.
+    a la Galería Demo.
     """
     obras_sin_galeria = session.exec(
         select(Obra).where(Obra.galeria_id == None)
     ).all()
-    
+
     if not obras_sin_galeria:
         return
-    
+
     for obra in obras_sin_galeria:
         obra.galeria_id = galeria.id
         obra.artista_id = artista.id
         session.add(obra)
-    
+
     session.commit()
     print(f"✅ Migración: {len(obras_sin_galeria)} obras asignadas a Galería Demo")
+
+def asignar_galeria_demo_a_usuarios(session: Session, galeria: Galeria):
+    """
+    Asigna la Galería Demo a todos los usuarios sin galeria_id.
+    Necesario para usuarios creados antes del sistema multi-tenant.
+    """
+    from app.models.usuario import Usuario
+
+    usuarios_sin_galeria = session.exec(
+        select(Usuario).where(Usuario.galeria_id == None)
+    ).all()
+
+    if not usuarios_sin_galeria:
+        return
+
+    for usuario in usuarios_sin_galeria:
+        usuario.galeria_id = galeria.id
+        session.add(usuario)
+
+    session.commit()
+    print(f"✅ Migración: {len(usuarios_sin_galeria)} usuarios asignados a Galería Demo")
+
+def seed_multitenancy(session: Session):
+    """
+    Seed completo de multi-tenancy en UN solo lugar.
+    Idempotente: se puede llamar en cada arranque sin efectos secundarios.
+    
+    Lo usan tanto main.py (producción) como conftest.py (tests),
+    evitando que se desincronicen.
+    """
+    galeria = seed_galeria_demo(session)
+    artista = seed_artista_demo(session, galeria)
+    migrar_obras_a_galeria_demo(session, galeria, artista)
+    asignar_galeria_demo_a_usuarios(session, galeria)

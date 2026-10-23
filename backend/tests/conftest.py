@@ -19,8 +19,6 @@ engine = create_engine(
 # ==========================================
 # ACTIVAR FOREIGN KEYS EN SQLITE (TESTS)
 # ==========================================
-# Mismo patrón que en database.py: SQLite por defecto no valida FKs.
-# Registramos el listener en el engine específico de tests.
 @event.listens_for(engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
@@ -39,41 +37,29 @@ fastapi_app.dependency_overrides[get_session] = get_test_session
 def setup_database():
     """
     Crea las tablas en el archivo de prueba ANTES de cada test,
-    siembra datos iniciales necesarios (admin, galería demo, artista demo)
-    y las borra DESPUÉS.
-    
-    Esto garantiza que cada test empieza con el mismo estado predecible.
+    siembra datos iniciales necesarios y las borra DESPUÉS.
     """
     SQLModel.metadata.create_all(bind=engine)
-    
-    # Seed de datos iniciales necesarios para tests
+
+    # Seed de datos iniciales (una sola llamada, idempotente)
     with Session(engine) as session:
-        from app.seed import seed_admin_user, seed_galeria_demo, seed_artista_demo
+        from app.seed import seed_admin_user, seed_multitenancy
         seed_admin_user(session)
-        # Fase 3: multi-tenancy
-        galeria_demo = seed_galeria_demo(session)
-        seed_artista_demo(session, galeria_demo)
-    
+        seed_multitenancy(session)
+
     yield
-    
+
     SQLModel.metadata.drop_all(bind=engine)
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_test_db():
-    """
-    Elimina el archivo de base de datos de prueba al finalizar
-    TODA la ejecución de pytest, pero primero libera el bloqueo de Windows.
-    """
+    """Elimina el archivo de BD de prueba al finalizar toda la ejecución de pytest."""
     yield
-    # 1. Cerrar todas las conexiones activas para liberar el archivo
     engine.dispose()
-
-    # 2. Ahora sí, Windows nos dejará borrarlo
     if os.path.exists("./test_database.db"):
         try:
             os.remove("./test_database.db")
         except PermissionError:
-            # Si por alguna razón sigue bloqueado, no interrumpimos el reporte de tests
             pass
 
 @pytest.fixture
@@ -84,34 +70,21 @@ def client():
 
 @pytest.fixture
 def session():
-    """
-    Sesión de BD directa para tests de modelo (sin HTTP).
-    Útil para tests unitarios de lógica de dominio que no necesitan
-    pasar por los endpoints.
-
-    Las tablas ya están creadas por setup_database (autouse=True).
-    """
+    """Sesión de BD directa para tests de modelo (sin HTTP)."""
     with Session(engine) as session:
         yield session
 
 @pytest.fixture
 def auth_headers(client: TestClient) -> dict:
-    """
-    Retorna headers de autorización para un usuario ADMIN.
-    Uso: client.post("/obras/", data=..., headers=auth_headers)
-    """
-    # Registrar un usuario admin para tests
+    """Retorna headers de autorización para un usuario ADMIN."""
     r = client.post("/auth/register", json={
         "email": "test_admin@example.com",
         "nombre": "Test Admin",
         "password": "testpass123",
     })
-
-    # Si ya existe (409), ignorar
     if r.status_code == 409:
         pass
 
-    # Actualizar rol a ADMIN directamente en la BD (porque register siempre crea VIEWER)
     with Session(engine) as session:
         from app.models.usuario import Usuario, RolUsuario
         usuario = session.exec(
@@ -122,12 +95,10 @@ def auth_headers(client: TestClient) -> dict:
             session.add(usuario)
             session.commit()
 
-    # Login para obtener token
     r = client.post("/auth/login", json={
         "email": "test_admin@example.com",
         "password": "testpass123",
     })
     assert r.status_code == 200, r.json()
-
     token = r.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

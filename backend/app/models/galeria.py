@@ -6,6 +6,7 @@ from sqlmodel import SQLModel, Field, Relationship
 if TYPE_CHECKING:
     from app.models.artista import Artista
     from app.models.obra import Obra
+    from app.models.usuario import Usuario
 
 class Galeria(SQLModel, table=True):
     """
@@ -19,11 +20,11 @@ class Galeria(SQLModel, table=True):
 
     # Identificación
     nombre: str = Field(max_length=200, index=True)
-    slug: str = Field(max_length=100, unique=True, index=True)  # Para URLs: /galeria-sur
+    slug: str = Field(max_length=100, unique=True, index=True)
 
     # Perfil público
     bio: Optional[str] = Field(default=None, max_length=2000)
-    ubicacion: Optional[str] = Field(default=None, max_length=200)  # "Buenos Aires, Argentina"
+    ubicacion: Optional[str] = Field(default=None, max_length=200)
     sitio_web: Optional[str] = Field(default=None, max_length=500)
     logo_url: Optional[str] = Field(default=None, max_length=500)
 
@@ -37,3 +38,4 @@ class Galeria(SQLModel, table=True):
     # Relaciones
     artistas: List["Artista"] = Relationship(back_populates="galeria")
     obras: List["Obra"] = Relationship(back_populates="galeria")
+    usuarios: List["Usuario"] = Relationship(back_populates="galeria")

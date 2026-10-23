@@ -8,15 +8,8 @@ from sqlmodel import Session
 from app.database import engine, create_db_and_tables
 from app.models import *  # noqa: F401,F403 - registra todos los modelos
 from app.routers import obras, tecnicas, exposiciones, compradores, prestamos, dashboard, auth, audit
-from app.seed import (
-    seed_database,
-    seed_admin_user,
-    seed_galeria_demo,
-    seed_artista_demo,
-    migrar_obras_a_galeria_demo
-)
+from app.seed import seed_database, seed_admin_user, seed_multitenancy
 from app.core.config import settings
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,17 +18,14 @@ async def lifespan(app: FastAPI):
     print("✅ Base de datos lista.")
 
     with Session(engine) as session:
-        # Seed original
+        # Seeds base
         seed_database(session)
         seed_admin_user(session)
-        
-        # Fase 3: Multi-tenancy
-        galeria_demo = seed_galeria_demo(session)
-        artista_demo = seed_artista_demo(session, galeria_demo)
-        migrar_obras_a_galeria_demo(session, galeria_demo, artista_demo)
+
+        # Fase 3: Multi-tenancy (una sola llamada, idempotente)
+        seed_multitenancy(session)
 
     yield
-
 
 app = FastAPI(
     title="Gestor de Obras de Arte",

@@ -1,8 +1,11 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from app.models.galeria import Galeria
 
 
 class RolUsuario(str, Enum):
@@ -26,3 +29,10 @@ class Usuario(UsuarioBase, table=True):
     activo: bool = Field(default=True)
     fecha_creacion: datetime = Field(default_factory=datetime.utcnow)
     ultimo_login: Optional[datetime] = None
+
+    # Multi-tenancy: galería a la que pertenece el usuario
+    # (nullable por compatibilidad con usuarios existentes)
+    galeria_id: Optional[int] = Field(default=None, foreign_key="galerias.id", index=True)
+
+    # Relación inversa con galería
+    galeria: Optional["Galeria"] = Relationship(back_populates="usuarios")
