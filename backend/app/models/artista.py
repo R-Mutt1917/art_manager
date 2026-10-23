@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime
 
 from sqlalchemy import UniqueConstraint
@@ -6,12 +6,13 @@ from sqlmodel import SQLModel, Field, Relationship
 
 if TYPE_CHECKING:
     from app.models.galeria import Galeria
+    from app.models.obra import Obra
 
 
 class Artista(SQLModel, table=True):
     """
     Artista perteneciente a una galería (tenant).
-    
+
     El slug es único DENTRO de cada galería (no globalmente),
     para permitir URLs semánticas como:
       /galeria-sur/julio-le-parc
@@ -46,5 +47,6 @@ class Artista(SQLModel, table=True):
     fecha_creacion: datetime = Field(default_factory=datetime.utcnow)
     fecha_actualizacion: Optional[datetime] = Field(default=None)
 
-    # Relación inversa: permite hacer galeria.artistas
+    # Relaciones
     galeria: Optional["Galeria"] = Relationship(back_populates="artistas")
+    obras: List["Obra"] = Relationship(back_populates="artista")
