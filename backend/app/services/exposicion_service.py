@@ -5,6 +5,7 @@ from fastapi import HTTPException
 
 from app.models.exposicion import Exposicion
 from app.models.obra_exposicion import ObraExposicion
+from app.models.galeria import Galeria
 from app.schemas.exposicion import ExposicionCreate, AsignarObraSchema
 from app.services.obra_service import ObraService
 
@@ -13,33 +14,38 @@ class ExposicionService:
         self.session = session
         self.obra_service = ObraService(session)
 
-    def crear_exposicion(self, expo_data: ExposicionCreate) -> Exposicion:
-        """Crea una nueva exposición."""
+    def crear_exposicion(self, expo_data: ExposicionCreate, galeria: Galeria) -> Exposicion:
+        """Crea una nueva exposición (aislada por galería)."""
         if expo_data.fecha_fin < expo_data.fecha_inicio:
             raise HTTPException(status_code=400, detail="La fecha de fin no puede ser anterior a la de inicio")
         
         db_expo = Exposicion.model_validate(expo_data)
+        # TODO en T5C: agregar galeria_id a Exposicion
         self.session.add(db_expo)
         self.session.commit()
         self.session.refresh(db_expo)
         return db_expo
 
-    def asignar_obra_a_exposicion(self, expo_id: int, obra_id: int, asignacion_data: AsignarObraSchema) -> ObraExposicion:
+    def asignar_obra_a_exposicion(
+        self,
+        expo_id: int,
+        obra_id: int,
+        asignacion_data: AsignarObraSchema,
+        galeria: Galeria  # ← NUEVO
+    ) -> ObraExposicion:
         """
         Asigna una obra a una exposición VALIDANDO que no haya superposición de fechas.
+        Con aislamiento multi-tenant: verifica que la obra pertenece a la galería.
         """
         # 1. Verificar que la exposición existe
         exposicion = self.session.get(Exposicion, expo_id)
         if not exposicion or not exposicion.activa:
             raise HTTPException(status_code=404, detail="Exposición no encontrada o inactiva")
 
-        # 2. Verificar que la obra existe y está activa (reutilizamos nuestro servicio)
-        obra = self.obra_service.obtener_por_id(obra_id)
+        # 2. Verificar que la obra existe, está activa Y pertenece a esta galería
+        obra = self.obra_service.obtener_por_id(obra_id, galeria)  # ← PASAR galeria
 
         # 3. 🧠 VALIDACIÓN DE FECHAS SUPERPUESTAS
-        # Buscamos si esta obra YA está asignada a OTRA exposición que se superponga en el tiempo.
-        # Dos rangos [A_inicio, A_fin] y [B_inicio, B_fin] se superponen si:
-        # A_inicio <= B_fin  AND  A_fin >= B_inicio
         statement = (
             select(ObraExposicion)
             .join(Exposicion)
@@ -53,7 +59,6 @@ class ExposicionService:
         
         asignaciones_superpuestas = self.session.exec(statement).all()
         
-        # Si encontramos alguna, y NO es la misma exposición (por si quiere re-asignar en la misma)
         asignaciones_en_otra_expo = [a for a in asignaciones_superpuestas if a.exposicion_id != expo_id]
         
         if asignaciones_en_otra_expo:
@@ -62,7 +67,7 @@ class ExposicionService:
                 detail=f"La obra '{obra.titulo}' ya está asignada a otra exposición en fechas que se superponen."
             )
 
-        # 4. Verificar si ya está asignada a ESTA MISMA exposición (para no duplicar)
+        # 4. Verificar si ya está asignada a ESTA MISMA exposición
         ya_asignada_aqui = self.session.exec(
             select(ObraExposicion).where(
                 ObraExposicion.obra_id == obra_id,
@@ -81,32 +86,29 @@ class ExposicionService:
             pared=asignacion_data.pared
         )
         
-        # Opcional: Actualizar el estado de la obra a "en_exposicion"
-        # (Depende de tu regla de negocio, a veces se deja en "disponible" hasta que empieza la expo)
-        
         self.session.add(nueva_asignacion)
         self.session.commit()
         self.session.refresh(nueva_asignacion)
         
         return nueva_asignacion
 
-    def obtener_checklist_retiro(self, expo_id: int) -> List[dict]:
+    def obtener_checklist_retiro(self, expo_id: int, galeria: Galeria) -> List[dict]:  # ← NUEVO param
         """
         Genera un checklist de obras que deben ser retiradas al finalizar la exposición.
+        Con aislamiento multi-tenant.
         """
         exposicion = self.session.get(Exposicion, expo_id)
         if not exposicion:
             raise HTTPException(status_code=404, detail="Exposición no encontrada")
 
-        # 1. Obtenemos todas las asignaciones de esta exposición
         statement = select(ObraExposicion).where(ObraExposicion.exposicion_id == expo_id)
         asignaciones = self.session.exec(statement).all()
         
         checklist = []
         for asignacion in asignaciones:
-            # 2. Accedemos a la obra a través de la relación (SQLModel la carga automáticamente)
             obra = asignacion.obra
-            if obra:
+            # 🔒 AISLAMIENTO: solo incluir obras de esta galería
+            if obra and obra.galeria_id == galeria.id:
                 checklist.append({
                     "titulo_obra": obra.titulo,
                     "dimensiones": obra.dimensiones,

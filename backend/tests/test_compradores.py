@@ -2,14 +2,12 @@
 import uuid
 from fastapi.testclient import TestClient
 
-
 def _crear_tecnica(client: TestClient, headers: dict = None, nombre: str | None = None) -> str:
     """Crea una técnica y devuelve su nombre."""
     nombre = nombre or f"Técnica {uuid.uuid4().hex[:8]}"
     r = client.post("/tecnicas/", json={"nombre": nombre, "descripcion": "Test"}, headers=headers or {})
     assert r.status_code == 201, r.json()
     return nombre
-
 
 def _crear_obra(client: TestClient, tecnica_nombre: str, headers: dict = None, **overrides) -> dict:
     """Helper: crea una obra con FormData y devuelve el JSON de respuesta."""
@@ -26,7 +24,6 @@ def _crear_obra(client: TestClient, tecnica_nombre: str, headers: dict = None, *
     assert r.status_code == 201, r.json()
     return r.json()
 
-
 def _crear_comprador(client: TestClient, headers: dict = None, **overrides) -> dict:
     """Helper: crea un comprador."""
     data = {
@@ -38,7 +35,6 @@ def _crear_comprador(client: TestClient, headers: dict = None, **overrides) -> d
     r = client.post("/compradores/", json=data, headers=headers or {})
     assert r.status_code == 201, r.json()
     return r.json()
-
 
 def test_registrar_venta_cambia_estado_de_obra(client: TestClient, auth_headers):
     """Registrar una venta cambia el estado de la obra a 'vendida'."""
@@ -58,10 +54,9 @@ def test_registrar_venta_cambia_estado_de_obra(client: TestClient, auth_headers)
     assert r.status_code == 201, r.json()
 
     # Verificar que el estado de la obra cambió a 'vendida'
-    r_obra = client.get(f"/obras/{obra['id']}")
+    r_obra = client.get(f"/obras/{obra['id']}", headers=auth_headers)  # ← agregar headers
     assert r_obra.json()["estado"] == "vendida"
     assert r_obra.json()["comprador_id"] == comprador["id"]
-
 
 def test_no_se_puede_vender_una_obra_ya_vendida(client: TestClient, auth_headers):
     """Una obra vendida no puede venderse de nuevo."""
@@ -70,7 +65,6 @@ def test_no_se_puede_vender_una_obra_ya_vendida(client: TestClient, auth_headers
     comprador1 = _crear_comprador(client, headers=auth_headers)
     comprador2 = _crear_comprador(client, headers=auth_headers)
 
-    # Primera venta (éxito)
     r1 = client.post(
         "/compradores/ventas/registrar",
         json={
@@ -82,7 +76,6 @@ def test_no_se_puede_vender_una_obra_ya_vendida(client: TestClient, auth_headers
     )
     assert r1.status_code == 201
 
-    # Segunda venta (debe fallar)
     r2 = client.post(
         "/compradores/ventas/registrar",
         json={
