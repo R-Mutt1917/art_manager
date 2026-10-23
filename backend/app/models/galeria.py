@@ -1,8 +1,10 @@
-from typing import Optional
+from typing import List, Optional, TYPE_CHECKING
 from datetime import datetime
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 
+if TYPE_CHECKING:
+    from app.models.artista import Artista
 
 class Galeria(SQLModel, table=True):
     """
@@ -30,3 +32,6 @@ class Galeria(SQLModel, table=True):
     # Timestamps
     fecha_creacion: datetime = Field(default_factory=datetime.utcnow)
     fecha_actualizacion: Optional[datetime] = Field(default=None)
+
+    # Relación: una galería tiene muchos artistas
+    artistas: List["Artista"] = Relationship(back_populates="galeria")

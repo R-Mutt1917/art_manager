@@ -7,8 +7,9 @@ from app.models.obra_exposicion import ObraExposicion
 from app.models.obra import Obra, EstadoObra
 from app.models.audit_log import AuditLog, TipoEvento
 from app.models.galeria import Galeria
+from app.models.artista import Artista
 
 __all__ = [
     "Tecnica", "Comprador", "Prestamo", 
-    "Exposicion", "ObraExposicion", "Obra", "EstadoObra", "AuditLog", "TipoEvento", "Galeria"
+    "Exposicion", "ObraExposicion", "Obra", "EstadoObra", "AuditLog", "TipoEvento", "Galeria", "Artista"
 ]
