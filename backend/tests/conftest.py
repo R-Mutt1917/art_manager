@@ -1,6 +1,7 @@
 import pytest
 import os
 from sqlmodel import SQLModel, Session, create_engine, select
+from sqlalchemy import event
 from fastapi.testclient import TestClient
 
 # 1. Importamos la app y los modelos
@@ -15,6 +16,17 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 
+# ==========================================
+# ACTIVAR FOREIGN KEYS EN SQLITE (TESTS)
+# ==========================================
+# Mismo patrón que en database.py: SQLite por defecto no valida FKs.
+# Registramos el listener en el engine específico de tests.
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 # 3. Dependencia de prueba
 def get_test_session():
     with Session(engine) as session:
@@ -28,37 +40,37 @@ def setup_database():
     """
     Crea las tablas en el archivo de prueba ANTES de cada test,
     siembra datos iniciales necesarios (admin) y las borra DESPUÉS.
-    
+
     Esto garantiza que cada test empieza con el mismo estado predecible.
     """
     SQLModel.metadata.create_all(bind=engine)
-    
+
     # Seed de datos iniciales necesarios para tests
     with Session(engine) as session:
         from app.seed import seed_admin_user
         seed_admin_user(session)
-    
+
     yield
-    
+
     SQLModel.metadata.drop_all(bind=engine)
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_test_db():
     """
-    Elimina el archivo de base de datos de prueba al finalizar 
+    Elimina el archivo de base de datos de prueba al finalizar
     TODA la ejecución de pytest, pero primero libera el bloqueo de Windows.
     """
     yield
     # 1. Cerrar todas las conexiones activas para liberar el archivo
     engine.dispose()
-    
+
     # 2. Ahora sí, Windows nos dejará borrarlo
     if os.path.exists("./test_database.db"):
         try:
             os.remove("./test_database.db")
         except PermissionError:
             # Si por alguna razón sigue bloqueado, no interrumpimos el reporte de tests
-            pass 
+            pass
 
 @pytest.fixture
 def client():
@@ -72,7 +84,7 @@ def session():
     Sesión de BD directa para tests de modelo (sin HTTP).
     Útil para tests unitarios de lógica de dominio que no necesitan
     pasar por los endpoints.
-    
+
     Las tablas ya están creadas por setup_database (autouse=True).
     """
     with Session(engine) as session:
@@ -90,11 +102,11 @@ def auth_headers(client: TestClient) -> dict:
         "nombre": "Test Admin",
         "password": "testpass123",
     })
-    
+
     # Si ya existe (409), ignorar
     if r.status_code == 409:
         pass
-    
+
     # Actualizar rol a ADMIN directamente en la BD (porque register siempre crea VIEWER)
     with Session(engine) as session:
         from app.models.usuario import Usuario, RolUsuario
@@ -105,13 +117,13 @@ def auth_headers(client: TestClient) -> dict:
             usuario.rol = RolUsuario.ADMIN
             session.add(usuario)
             session.commit()
-    
+
     # Login para obtener token
     r = client.post("/auth/login", json={
         "email": "test_admin@example.com",
         "password": "testpass123",
     })
     assert r.status_code == 200, r.json()
-    
+
     token = r.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

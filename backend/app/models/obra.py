@@ -14,13 +14,11 @@ if TYPE_CHECKING:
     from app.models.artista import Artista
     from app.models.galeria import Galeria
 
-
 class EstadoObra(str, Enum):
     DISPONIBLE = "disponible"
     VENDIDA = "vendida"
     EN_EXPOSICION = "en_exposicion"
     EN_PRESTAMO = "en_prestamo"
-
 
 class Obra(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
