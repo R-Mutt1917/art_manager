@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped
 
 if TYPE_CHECKING:
     from app.models.obra import Obra
+    from app.models.galeria import Galeria
 
 class Prestamo(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -16,5 +17,9 @@ class Prestamo(SQLModel, table=True):
     fecha_devolucion_real: Optional[date] = Field(default=None)
     estado: str = Field(default="activo", max_length=20)
     motivo: Optional[str] = Field(default=None, max_length=500)
-    
+
+    # Multi-tenancy: galería a la que pertenece el préstamo
+    galeria_id: Optional[int] = Field(default=None, foreign_key="galerias.id", index=True)
+
     obra: Mapped[Optional["Obra"]] = Relationship(back_populates="prestamo")
+    galeria: Optional["Galeria"] = Relationship(back_populates="prestamos")

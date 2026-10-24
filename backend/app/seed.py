@@ -45,11 +45,7 @@ def seed_admin_user(session: Session):
         print("✅ Seed: usuario admin creado (admin@artmanager.com / admin123)")
 
 def seed_galeria_demo(session: Session) -> Galeria:
-    """
-    Crea la Galería Demo por defecto si no existe.
-    Esta galería es el "tenant inicial" para todas las obras
-    que se crearon antes del sistema multi-tenant.
-    """
+    """Crea la Galería Demo por defecto si no existe."""
     galeria = session.exec(
         select(Galeria).where(Galeria.slug == "galeria-demo")
     ).first()
@@ -97,10 +93,7 @@ def seed_artista_demo(session: Session, galeria: Galeria) -> Artista:
     return artista
 
 def migrar_obras_a_galeria_demo(session: Session, galeria: Galeria, artista: Artista):
-    """
-    Migra todas las obras que no tienen galeria_id asignándolas
-    a la Galería Demo.
-    """
+    """Migra todas las obras sin galeria_id a la Galería Demo."""
     obras_sin_galeria = session.exec(
         select(Obra).where(Obra.galeria_id == None)
     ).all()
@@ -117,10 +110,7 @@ def migrar_obras_a_galeria_demo(session: Session, galeria: Galeria, artista: Art
     print(f"✅ Migración: {len(obras_sin_galeria)} obras asignadas a Galería Demo")
 
 def asignar_galeria_demo_a_usuarios(session: Session, galeria: Galeria):
-    """
-    Asigna la Galería Demo a todos los usuarios sin galeria_id.
-    Necesario para usuarios creados antes del sistema multi-tenant.
-    """
+    """Asigna la Galería Demo a todos los usuarios sin galeria_id."""
     from app.models.usuario import Usuario
 
     usuarios_sin_galeria = session.exec(
@@ -137,11 +127,65 @@ def asignar_galeria_demo_a_usuarios(session: Session, galeria: Galeria):
     session.commit()
     print(f"✅ Migración: {len(usuarios_sin_galeria)} usuarios asignados a Galería Demo")
 
+def asignar_galeria_demo_a_compradores(session: Session, galeria: Galeria):
+    """Asigna Galería Demo a compradores sin galeria_id."""
+    from app.models.comprador import Comprador
+
+    compradores_sin_galeria = session.exec(
+        select(Comprador).where(Comprador.galeria_id == None)
+    ).all()
+
+    if not compradores_sin_galeria:
+        return
+
+    for comprador in compradores_sin_galeria:
+        comprador.galeria_id = galeria.id
+        session.add(comprador)
+
+    session.commit()
+    print(f"✅ Migración: {len(compradores_sin_galeria)} compradores asignados a Galería Demo")
+
+def asignar_galeria_demo_a_prestamos(session: Session, galeria: Galeria):
+    """Asigna Galería Demo a préstamos sin galeria_id."""
+    from app.models.prestamo import Prestamo
+
+    prestamos_sin_galeria = session.exec(
+        select(Prestamo).where(Prestamo.galeria_id == None)
+    ).all()
+
+    if not prestamos_sin_galeria:
+        return
+
+    for prestamo in prestamos_sin_galeria:
+        prestamo.galeria_id = galeria.id
+        session.add(prestamo)
+
+    session.commit()
+    print(f"✅ Migración: {len(prestamos_sin_galeria)} préstamos asignados a Galería Demo")
+
+def asignar_galeria_demo_a_exposiciones(session: Session, galeria: Galeria):
+    """Asigna Galería Demo a exposiciones sin galeria_id."""
+    from app.models.exposicion import Exposicion
+
+    exposiciones_sin_galeria = session.exec(
+        select(Exposicion).where(Exposicion.galeria_id == None)
+    ).all()
+
+    if not exposiciones_sin_galeria:
+        return
+
+    for exposicion in exposiciones_sin_galeria:
+        exposicion.galeria_id = galeria.id
+        session.add(exposicion)
+
+    session.commit()
+    print(f"✅ Migración: {len(exposiciones_sin_galeria)} exposiciones asignadas a Galería Demo")
+
 def seed_multitenancy(session: Session):
     """
     Seed completo de multi-tenancy en UN solo lugar.
     Idempotente: se puede llamar en cada arranque sin efectos secundarios.
-    
+
     Lo usan tanto main.py (producción) como conftest.py (tests),
     evitando que se desincronicen.
     """
@@ -149,3 +193,6 @@ def seed_multitenancy(session: Session):
     artista = seed_artista_demo(session, galeria)
     migrar_obras_a_galeria_demo(session, galeria, artista)
     asignar_galeria_demo_a_usuarios(session, galeria)
+    asignar_galeria_demo_a_compradores(session, galeria)
+    asignar_galeria_demo_a_prestamos(session, galeria)
+    asignar_galeria_demo_a_exposiciones(session, galeria)

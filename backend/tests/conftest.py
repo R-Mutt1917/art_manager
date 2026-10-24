@@ -28,8 +28,17 @@ fastapi_app.dependency_overrides[get_session] = get_test_session
 
 @pytest.fixture(autouse=True)
 def setup_database():
+    """
+    Destruye y recrea TODAS las tablas antes de cada test.
+    Garantiza que el esquema esté siempre actualizado con los últimos modelos.
+    """
+    # 1. Borrar todo (incluye tablas con esquema viejo)
+    SQLModel.metadata.drop_all(bind=engine)
+    
+    # 2. Recrear desde cero
     SQLModel.metadata.create_all(bind=engine)
 
+    # Seed de datos iniciales
     with Session(engine) as session:
         from app.seed import seed_admin_user, seed_multitenancy
         seed_admin_user(session)
@@ -37,6 +46,7 @@ def setup_database():
 
     yield
 
+    # Limpiar después de cada test
     SQLModel.metadata.drop_all(bind=engine)
 
 @pytest.fixture(scope="session", autouse=True)

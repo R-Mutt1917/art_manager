@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped
 
 if TYPE_CHECKING:
     from app.models.obra_exposicion import ObraExposicion
+    from app.models.galeria import Galeria
 
 class Exposicion(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -14,5 +15,9 @@ class Exposicion(SQLModel, table=True):
     fecha_fin: date
     descripcion: Optional[str] = Field(default=None)
     activa: bool = Field(default=True)
-    
+
+    # Multi-tenancy: galería a la que pertenece la exposición
+    galeria_id: Optional[int] = Field(default=None, foreign_key="galerias.id", index=True)
+
     asignaciones: Mapped[List["ObraExposicion"]] = Relationship(back_populates="exposicion")
+    galeria: Optional["Galeria"] = Relationship(back_populates="exposiciones")

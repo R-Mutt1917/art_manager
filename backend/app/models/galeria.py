@@ -7,6 +7,9 @@ if TYPE_CHECKING:
     from app.models.artista import Artista
     from app.models.obra import Obra
     from app.models.usuario import Usuario
+    from app.models.comprador import Comprador
+    from app.models.prestamo import Prestamo
+    from app.models.exposicion import Exposicion
 
 class Galeria(SQLModel, table=True):
     """
@@ -39,3 +42,6 @@ class Galeria(SQLModel, table=True):
     artistas: List["Artista"] = Relationship(back_populates="galeria")
     obras: List["Obra"] = Relationship(back_populates="galeria")
     usuarios: List["Usuario"] = Relationship(back_populates="galeria")
+    compradores: List["Comprador"] = Relationship(back_populates="galeria")
+    prestamos: List["Prestamo"] = Relationship(back_populates="galeria")
+    exposiciones: List["Exposicion"] = Relationship(back_populates="galeria")
