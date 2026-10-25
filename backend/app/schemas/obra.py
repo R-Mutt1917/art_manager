@@ -10,6 +10,7 @@ class ObraCreate(BaseModel):
     precio: Optional[float] = Field(default=None, ge=0)
     estado: EstadoObra = Field(default=EstadoObra.DISPONIBLE)
     notas: Optional[str] = None
+    statement: Optional[str] = None # texto curatorial / memoria conceptual (visible en perfiles públicos)
     tecnica_id: Optional[int] = None
     comprador_id: Optional[int] = None
     fecha_venta: Optional[date] = None
@@ -26,6 +27,7 @@ class ObraUpdate(BaseModel):
     precio: Optional[float] = Field(None, ge=0)
     estado: Optional[EstadoObra] = None
     notas: Optional[str] = None
+    statement: Optional[str] = None  # texto curatorial / memoria conceptual (visible en perfiles públicos)
     tecnica_id: Optional[int] = None
     comprador_id: Optional[int] = None
     fecha_venta: Optional[date] = None

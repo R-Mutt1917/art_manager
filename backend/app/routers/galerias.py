@@ -53,6 +53,7 @@ def _obras_publicas_del_artista(session: Session, artista_id: int) -> List[ObraP
                 estado=obra.estado.value if hasattr(obra.estado, "value") else str(obra.estado),
                 imagen_url=obra.imagen_url,
                 tecnica_nombre=tecnica_nombre,
+                statement=obra.statement,  # ← DEBE EXISTIR ESTA LÍNEA
             )
         )
     return resultado

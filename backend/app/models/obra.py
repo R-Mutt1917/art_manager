@@ -28,7 +28,13 @@ class Obra(SQLModel, table=True):
     precio: Optional[float] = Field(default=None, ge=0)
     estado: EstadoObra = Field(default=EstadoObra.DISPONIBLE)
     imagen_url: Optional[str] = Field(default=None)
+
+    # Interno: notas del curador/galerista (nunca público)
     notas: Optional[str] = Field(default=None)
+
+    # Público: texto curatorial / memoria conceptual (visible en perfiles públicos)
+    statement: Optional[str] = Field(default=None)
+
     fecha_venta: Optional[date] = Field(default=None)
 
     fecha_creacion: datetime = Field(default_factory=datetime.utcnow)

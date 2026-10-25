@@ -38,6 +38,7 @@ def crear_obra(
     precio: Optional[float] = Form(None),
     estado: str = Form("disponible"),
     notas: Optional[str] = Form(None),
+    statement: Optional[str] = Form(None),
     tecnica: str = Form(...),
     imagen: Optional[UploadFile] = File(None),
     session: Session = Depends(get_session),
@@ -77,6 +78,7 @@ def crear_obra(
         precio=precio,
         estado=estado_enum,
         notas=notas,
+        statement=statement,
         tecnica_id=tecnica_obj.id,
         imagen_url=imagen_url
     )
@@ -175,6 +177,7 @@ def actualizar_obra(
     precio: Optional[float] = Form(None),
     estado: str = Form("disponible"),
     notas: Optional[str] = Form(None),
+    statement: Optional[str] = Form(None),
     tecnica: str = Form(...),
     imagen: Optional[UploadFile] = File(None),
     session: Session = Depends(get_session),
@@ -200,6 +203,7 @@ def actualizar_obra(
         "dimensiones": dimensiones,
         "precio": precio,
         "notas": notas,
+        "statement": statement,
         "tecnica_id": tecnica_obj.id,
     }
     

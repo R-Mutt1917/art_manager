@@ -94,6 +94,7 @@ class ObraService:
             precio=obra_data.precio,
             estado=obra_data.estado,
             notas=obra_data.notas,
+            statement=obra_data.statement, # texto curatorial / memoria conceptual (visible en perfiles públicos) 
             tecnica_id=obra_data.tecnica_id,
             comprador_id=obra_data.comprador_id,
             fecha_venta=obra_data.fecha_venta,

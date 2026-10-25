@@ -1,5 +1,5 @@
 """
-Tests de endpoints públicos de galerías (URLs semánticas, Fase 3 T6-1).
+Tests de endpoints públicos de galerías (URLs semánticas, Fase 3 T6-1 y T7-1).
 Validan que lo público es público y lo privado sigue velado.
 """
 from fastapi.testclient import TestClient
@@ -119,3 +119,41 @@ def test_artista_de_otra_galeria_no_responde_bajo_slug_ajeno(client: TestClient,
 
     r = client.get("/galerias/galeria-sur/artistas/otra-artista")
     assert r.status_code == 404
+
+def test_statement_es_publico_mientras_notas_siguen_veladas(client: TestClient, session: Session):
+    """
+    NOTA DE PRODUCTO IMPLEMENTADA (T7-1):
+    El statement (memoria conceptual) es público; las notas internas no.
+    """
+    galeria = Galeria(nombre="Galería Conceptual", slug="g-conceptual")
+    session.add(galeria)
+    session.commit()
+    session.refresh(galeria)
+
+    artista = Artista(galeria_id=galeria.id, nombre="Artista Conceptual", slug="artista-conceptual")
+    session.add(artista)
+    session.commit()
+    session.refresh(artista)
+
+    obra = Obra(
+        titulo="Obra con Statement",
+        anio=2024,
+        dimensiones="80x80",
+        precio=25000.0,
+        statement="La obra interpela la memoria colectiva a través del vacío.",
+        notas="Interna: revisar marco antes de la feria.",
+        galeria_id=galeria.id,
+        artista_id=artista.id,
+    )
+    session.add(obra)
+    session.commit()
+
+    r = client.get("/galerias/g-conceptual/artistas/artista-conceptual")
+    assert r.status_code == 200
+    obra_json = r.json()["obras"][0]
+
+    # Statement: PÚBLICO
+    assert obra_json["statement"] == "La obra interpela la memoria colectiva a través del vacío."
+    # Notas y precio: VELADOS
+    assert "notas" not in obra_json
+    assert "precio" not in obra_json

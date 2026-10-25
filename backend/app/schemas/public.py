@@ -1,11 +1,13 @@
 from typing import List, Optional
+
 from pydantic import BaseModel
+
 
 class ObraPublicRead(BaseModel):
     """
     Vista pública y velada de una obra.
-    SIN precio, SIN notas internas del curador.
-    (Futuro T7: campo 'statement' / memoria conceptual pública.)
+    SIN precio, SIN notas internas.
+    CON statement: el texto curatorial es parte de la obra pública.
     """
     id: int
     titulo: str
@@ -13,8 +15,10 @@ class ObraPublicRead(BaseModel):
     estado: str
     imagen_url: Optional[str] = None
     tecnica_nombre: Optional[str] = None
+    statement: Optional[str] = None  # ← DEBE EXISTIR ESTA LÍNEA
 
     model_config = {"from_attributes": True}
+
 
 class ArtistaPublicRead(BaseModel):
     """Perfil público de un artista."""
@@ -29,9 +33,11 @@ class ArtistaPublicRead(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class ArtistaDetallePublicRead(ArtistaPublicRead):
     """Perfil público del artista + sus obras veladas."""
     obras: List[ObraPublicRead] = []
+
 
 class GaleriaPublicRead(BaseModel):
     """Perfil público de la galería con contadores."""
