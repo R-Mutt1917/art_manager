@@ -3,19 +3,18 @@ from sqlmodel import Session, select, func
 
 from app.models.obra import Obra, EstadoObra
 from app.models.tecnica import Tecnica
-
+from app.models.galeria import Galeria
 
 class DashboardService:
     """
     Servicio de métricas agregadas para el dashboard.
-    Todas las consultas son de solo lectura y optimizadas con SQL.
+    Con aislamiento multi-tenant: todas las queries filtran por galeria_id.
     """
-
     def __init__(self, session: Session):
         self.session = session
 
-    def obtener_estadisticas(self) -> Dict[str, Any]:
-        """Retorna todas las métricas del dashboard en un solo llamado."""
+    def obtener_estadisticas(self, galeria: Galeria) -> Dict[str, Any]:
+        """Retorna las métricas SOLO de la galería especificada."""
         # 1. Totales por estado (iteramos los miembros del enum: MAYÚSCULAS)
         obras_por_estado = {}
         for estado in EstadoObra:
@@ -23,19 +22,21 @@ class DashboardService:
                 select(func.count(Obra.id)).where(
                     Obra.activo == True,
                     Obra.estado == estado,
+                    Obra.galeria_id == galeria.id,  # ← AISLAMIENTO
                 )
             ).one()
-            obras_por_estado[estado.value] = count  # clave en minúsculas p/ el JSON
+            obras_por_estado[estado.value] = count
 
-        # 2. Total general (solo activas)
+        # 2. Total general (solo activas de esta galería)
         total_obras = sum(obras_por_estado.values())
 
         # 3. Valor total del inventario (obras disponibles con precio)
         valor_inventario = self.session.exec(
             select(func.coalesce(func.sum(Obra.precio), 0.0)).where(
                 Obra.activo == True,
-                Obra.estado == EstadoObra.DISPONIBLE,   # ← MAYÚSCULAS
+                Obra.estado == EstadoObra.DISPONIBLE,
                 Obra.precio.isnot(None),
+                Obra.galeria_id == galeria.id,  # ← AISLAMIENTO
             )
         ).one()
 
@@ -43,16 +44,20 @@ class DashboardService:
         total_vendido = self.session.exec(
             select(func.coalesce(func.sum(Obra.precio), 0.0)).where(
                 Obra.activo == True,
-                Obra.estado == EstadoObra.VENDIDA,      # ← MAYÚSCULAS
+                Obra.estado == EstadoObra.VENDIDA,
                 Obra.precio.isnot(None),
+                Obra.galeria_id == galeria.id,  # ← AISLAMIENTO
             )
         ).one()
 
-        # 5. Top 5 técnicas por cantidad de obras
+        # 5. Top 5 técnicas por cantidad de obras (de esta galería)
         resultados_tecnicas = self.session.exec(
             select(Tecnica.nombre, func.count(Obra.id))
             .join(Obra, Obra.tecnica_id == Tecnica.id)
-            .where(Obra.activo == True)
+            .where(
+                Obra.activo == True,
+                Obra.galeria_id == galeria.id,  # ← AISLAMIENTO (el JOIN solo no basta)
+            )
             .group_by(Tecnica.id, Tecnica.nombre)
             .order_by(func.count(Obra.id).desc())
             .limit(5)
