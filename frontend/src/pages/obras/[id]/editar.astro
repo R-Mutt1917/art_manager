@@ -14,7 +14,6 @@ if (!obra) {
   return new Response(null, { status: 404 });
 }
 
-// Resolver el nombre de la técnica para pre-rellenar
 let tecnicaNombre = '';
 if (obra.tecnica_id) {
   const tecnica = await getTecnica(obra.tecnica_id);
@@ -28,6 +27,7 @@ const initialData = {
   dimensiones: obra.dimensiones,
   precio: obra.precio,
   notas: obra.notas,
+  statement: obra.statement,  // ← NUEVO
   estado: obra.estado,
   tecnica_nombre: tecnicaNombre,
   imagen_url: obra.imagen_url,
@@ -35,7 +35,6 @@ const initialData = {
 ---
 
 <Layout title={`Editar: ${obra.titulo}`} description={`Editar obra ${obra.titulo}`}>
-  <!-- Protege la ruta: redirige a /login si no hay token -->
   <RouteGuard client:only="react" />
   
   <nav class="mb-8" aria-label="Navegación de retorno">

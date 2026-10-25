@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
-import { http } from '../services/httpClient'; // ← NUEVO: Usamos el interceptor
+import { http } from '../services/httpClient';
 
 interface Tecnica { id: number; nombre: string; }
 
@@ -11,6 +11,7 @@ interface ArtworkFormProps {
     dimensiones: string;
     precio: number | null;
     notas: string | null;
+    statement: string | null;  // ← NUEVO
     estado: string;
     tecnica_nombre: string;
     imagen_url: string | null;
@@ -36,9 +37,9 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
     dimensiones: initialData?.dimensiones ?? '',
     precio: initialData?.precio?.toString() ?? '',
     notas: initialData?.notas ?? '',
+    statement: initialData?.statement ?? '',  // ← NUEVO
   });
 
-  // Cargar técnicas usando el interceptor
   useEffect(() => {
     http.get<Tecnica[]>('/tecnicas/')
       .then((data) => setTecnicas(data))
@@ -72,10 +73,10 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
       data.append('dimensiones', formData.dimensiones);
       if (formData.precio) data.append('precio', formData.precio);
       if (formData.notas) data.append('notas', formData.notas);
+      if (formData.statement) data.append('statement', formData.statement);  // ← NUEVO
       data.append('tecnica', tecnicaInput);
       if (imagen) data.append('imagen', imagen);
 
-      // ← NUEVO: Usamos el interceptor que adjunta el token automáticamente
       const response = isEditMode
         ? await http.put(`/obras/${initialData!.id}`, data)
         : await http.post('/obras/', data);
@@ -85,12 +86,18 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
       if (isEditMode) {
         setTimeout(() => { window.location.href = `/obras/${response.id}`; }, 1000);
       } else {
-        setFormData({ titulo: '', anio: new Date().getFullYear().toString(), dimensiones: '', precio: '', notas: '' });
+        setFormData({ 
+          titulo: '', 
+          anio: new Date().getFullYear().toString(), 
+          dimensiones: '', 
+          precio: '', 
+          notas: '',
+          statement: '',  // ← NUEVO
+        });
         setTecnicaInput('');
         setImagen(null);
       }
     } catch (err: any) {
-      // El interceptor ya redirige a /login si es 401/403, pero si es otro error (ej: 422), lo mostramos
       setError(err.message);
     } finally {
       setLoading(false);
@@ -207,9 +214,41 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
         </div>
 
         <div>
-          <label htmlFor="notas" className={labelClass}>Notas</label>
-          <textarea id="notas" name="notas" rows={3} value={formData.notas} onChange={handleChange}
-            className={`${inputClass} resize-none`} placeholder="Opcional" />
+          <label htmlFor="statement" className={labelClass}>
+            Statement / Memoria conceptual 
+            <span className="ml-2 text-xs font-normal text-accent">(público)</span>
+          </label>
+          <textarea 
+            id="statement" 
+            name="statement" 
+            rows={4} 
+            value={formData.statement} 
+            onChange={handleChange}
+            className={`${inputClass} resize-none`} 
+            placeholder="Texto curatorial que acompañará a la obra en el perfil público del artista..."
+          />
+          <p className="mt-1 text-xs text-text-secondary">
+            Este texto es visible en el catálogo público. Ideal para obra conceptual.
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="notas" className={labelClass}>
+            Notas internas
+            <span className="ml-2 text-xs font-normal text-text-secondary">(privado)</span>
+          </label>
+          <textarea 
+            id="notas" 
+            name="notas" 
+            rows={3} 
+            value={formData.notas} 
+            onChange={handleChange}
+            className={`${inputClass} resize-none`} 
+            placeholder="Observaciones internas del curador, procedencia, estado del marco, etc." 
+          />
+          <p className="mt-1 text-xs text-text-secondary">
+            Solo visible para el equipo de la galería. Nunca se muestra al público.
+          </p>
         </div>
       </div>
 

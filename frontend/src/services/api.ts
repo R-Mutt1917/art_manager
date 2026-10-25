@@ -17,6 +17,7 @@ export interface Obra {
   tecnica_id: number | null;
   comprador_id: number | null;
   notas: string | null;
+  statement: string | null;  // ← NUEVO: texto curatorial público
 }
 
 export interface Tecnica {
