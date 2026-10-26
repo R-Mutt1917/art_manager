@@ -1,0 +1,77 @@
+---
+export const prerender = false;
+
+import Layout from '../../../../layouts/Layout.astro';
+import { apiPublic } from '../../../../services/apiPublic';
+
+const { slug } = Astro.params;
+const galeriaSlug = slug as string;
+
+const [galeria, artistas] = await Promise.all([
+  apiPublic.getGaleria(galeriaSlug),
+  apiPublic.getArtistas(galeriaSlug),
+]);
+
+if (!galeria || !artistas) {
+  return new Response(null, { status: 404 });
+}
+---
+
+<Layout title={`Artistas — ${galeria.nombre}`} description={`Artistas representados por ${galeria.nombre}`}>
+  <article class="max-w-6xl mx-auto px-4 py-12">
+    <nav class="mb-8">
+      <a href={`/galerias/${galeriaSlug}`} class="text-sm text-text-secondary hover:text-accent transition-colors">
+        ← Volver a {galeria.nombre}
+      </a>
+    </nav>
+
+    <header class="mb-12">
+      <p class="text-text-secondary text-sm uppercase tracking-wide mb-2">Artistas de</p>
+      <h1 class="font-serif text-4xl font-bold text-text-primary">{galeria.nombre}</h1>
+    </header>
+
+    {artistas.length === 0 ? (
+      <p class="text-text-secondary text-center py-12">
+        Aún no hay artistas publicados.
+      </p>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {artistas.map((artista) => (
+          <a
+            href={`/galerias/${galeriaSlug}/artistas/${artista.slug}`}
+            class="group block bg-white rounded-lg overflow-hidden border border-gray-200 hover:border-accent hover:shadow-lg transition-all"
+          >
+            <div class="aspect-square bg-gray-100 overflow-hidden">
+              {artista.foto_perfil ? (
+                <img
+                  src={`${import.meta.env.PUBLIC_API_URL}${artista.foto_perfil}`}
+                  alt={artista.nombre}
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              ) : (
+                <div class="w-full h-full flex items-center justify-center text-text-secondary/40 text-6xl font-serif">
+                  {artista.nombre.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div class="p-4">
+              <h2 class="font-serif text-xl font-bold text-text-primary mb-1 group-hover:text-accent transition-colors">
+                {artista.nombre}
+              </h2>
+              {(artista.nacionalidad || artista.anio_nacimiento) && (
+                <p class="text-text-secondary text-sm">
+                  {[artista.nacionalidad, artista.anio_nacimiento && `n. ${artista.anio_nacimiento}`].filter(Boolean).join(', ')}
+                </p>
+              )}
+              {artista.bio && (
+                <p class="text-text-secondary text-sm mt-2 line-clamp-2">
+                  {artista.bio}
+                </p>
+              )}
+            </div>
+          </a>
+        ))}
+      </div>
+    )}
+  </article>
+</Layout>

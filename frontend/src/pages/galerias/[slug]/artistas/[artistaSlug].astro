@@ -1,0 +1,117 @@
+---
+export const prerender = false;
+
+import Layout from '../../../../layouts/Layout.astro';
+import { apiPublic, type ObraPublic } from '../../../../services/apiPublic';
+
+const { slug, artistaSlug } = Astro.params;
+const galeriaSlug = slug as string;
+
+const artista = await apiPublic.getArtista(galeriaSlug, artistaSlug as string);
+
+if (!artista) {
+  return new Response(null, { status: 404 });
+}
+
+const galeria = await apiPublic.getGaleria(galeriaSlug);
+---
+
+<Layout title={`${artista.nombre} — ${galeria?.nombre || ''}`} description={artista.bio || `Obras de ${artista.nombre}`}>
+  <article class="max-w-6xl mx-auto px-4 py-12">
+    <nav class="mb-8">
+      <a href={`/galerias/${galeriaSlug}/artistas`} class="text-sm text-text-secondary hover:text-accent transition-colors">
+        ← Todos los artistas
+      </a>
+    </nav>
+
+    <header class="mb-12 md:flex md:gap-8 md:items-start">
+      <div class="md:w-64 md:flex-shrink-0 mb-6 md:mb-0">
+        {artista.foto_perfil ? (
+          <img
+            src={`${import.meta.env.PUBLIC_API_URL}${artista.foto_perfil}`}
+            alt={artista.nombre}
+            class="w-full aspect-square object-cover rounded-lg shadow-md"
+          />
+        ) : (
+          <div class="w-full aspect-square bg-gray-100 rounded-lg flex items-center justify-center text-text-secondary/40 text-8xl font-serif shadow-md">
+            {artista.nombre.charAt(0)}
+          </div>
+        )}
+      </div>
+
+      <div class="flex-1">
+        <h1 class="font-serif text-4xl md:text-5xl font-bold text-text-primary mb-3">
+          {artista.nombre}
+        </h1>
+        {(artista.nacionalidad || artista.anio_nacimiento) && (
+          <p class="text-text-secondary text-lg mb-4">
+            {[artista.nacionalidad, artista.anio_nacimiento && `Nacido en ${artista.anio_nacimiento}`].filter(Boolean).join(' · ')}
+          </p>
+        )}
+        {artista.bio && (
+          <p class="text-text-primary leading-relaxed whitespace-pre-line mb-4">
+            {artista.bio}
+          </p>
+        )}
+        {artista.sitio_web && (
+          <a
+            href={artista.sitio_web}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-block text-accent hover:underline text-sm"
+          >
+            Sitio web del artista →
+          </a>
+        )}
+      </div>
+    </header>
+
+    {artista.obras.length === 0 ? (
+      <p class="text-text-secondary text-center py-12">
+        Aún no hay obras publicadas de este artista.
+      </p>
+    ) : (
+      <section>
+        <h2 class="font-serif text-2xl font-bold text-text-primary mb-8 border-b border-gray-200 pb-3">
+          Obras ({artista.obras.length})
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {artista.obras.map((obra: ObraPublic) => (
+            <article class="bg-white rounded-lg overflow-hidden border border-gray-200">
+              {obra.imagen_url && (
+                <div class="aspect-[4/3] bg-gray-100 overflow-hidden">
+                  <img
+                    src={`${import.meta.env.PUBLIC_API_URL}${obra.imagen_url}`}
+                    alt={obra.titulo}
+                    class="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div class="p-5">
+                <div class="flex items-baseline justify-between mb-2">
+                  <h3 class="font-serif text-xl font-bold text-text-primary">
+                    {obra.titulo}
+                  </h3>
+                  <span class="text-text-secondary text-sm ml-2 flex-shrink-0">{obra.anio}</span>
+                </div>
+                {obra.tecnica_nombre && (
+                  <p class="text-text-secondary text-sm italic mb-3">
+                    {obra.tecnica_nombre}
+                  </p>
+                )}
+                {obra.statement && (
+                  <p class="text-text-primary text-sm leading-relaxed italic border-l-2 border-accent pl-3 mt-3">
+                    {obra.statement}
+                  </p>
+                )}
+                <p class="text-xs text-text-secondary mt-3 uppercase tracking-wide">
+                  {obra.estado === 'disponible' ? 'Disponible' : obra.estado.replace('_', ' ')}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    )}
+  </article>
+</Layout>

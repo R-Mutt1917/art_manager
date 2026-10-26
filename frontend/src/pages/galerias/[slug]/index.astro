@@ -1,0 +1,74 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+import { apiPublic } from '../../../services/apiPublic';
+
+const { slug } = Astro.params;
+const galeria = await apiPublic.getGaleria(slug as string);
+
+if (!galeria) {
+  return new Response(null, { status: 404 });
+}
+---
+
+<Layout title={galeria.nombre} description={galeria.bio || `Galería ${galeria.nombre}`}>
+  <article class="max-w-4xl mx-auto px-4 py-12">
+    <header class="mb-12 text-center">
+      {galeria.logo_url && (
+        <img
+          src={`${import.meta.env.PUBLIC_API_URL}${galeria.logo_url}`}
+          alt={`Logo de ${galeria.nombre}`}
+          class="w-24 h-24 object-contain mx-auto mb-6"
+        />
+      )}
+      <h1 class="font-serif text-5xl font-bold text-text-primary mb-4">
+        {galeria.nombre}
+      </h1>
+      {galeria.ubicacion && (
+        <p class="text-text-secondary text-lg">{galeria.ubicacion}</p>
+      )}
+    </header>
+
+    {galeria.bio && (
+      <section class="mb-12">
+        <p class="text-text-primary text-lg leading-relaxed text-center max-w-2xl mx-auto">
+          {galeria.bio}
+        </p>
+      </section>
+    )}
+
+    <section class="grid grid-cols-2 gap-6 mb-12 max-w-md mx-auto">
+      <div class="bg-gray-50 rounded-lg p-6 text-center border border-gray-200">
+        <p class="font-serif text-4xl font-bold text-accent mb-2">{galeria.total_artistas}</p>
+        <p class="text-text-secondary text-sm uppercase tracking-wide">Artistas</p>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-6 text-center border border-gray-200">
+        <p class="font-serif text-4xl font-bold text-accent mb-2">{galeria.total_obras}</p>
+        <p class="text-text-secondary text-sm uppercase tracking-wide">Obras</p>
+      </div>
+    </section>
+
+    <section class="text-center">
+      <a
+        href={`/galerias/${galeria.slug}/artistas`}
+        class="inline-block px-8 py-3 bg-text-primary text-white font-medium rounded-lg hover:bg-accent transition-colors"
+      >
+        Conocé nuestros artistas →
+      </a>
+    </section>
+
+    {galeria.sitio_web && (
+      <footer class="mt-16 text-center">
+        <a
+          href={galeria.sitio_web}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-accent hover:underline text-sm"
+        >
+          {galeria.sitio_web}
+        </a>
+      </footer>
+    )}
+  </article>
+</Layout>
