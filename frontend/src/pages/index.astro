@@ -1,118 +1,197 @@
 ---
-// Landing Page: SEO optimizado, enfoque en conversión a login.
-
 import Layout from '../layouts/Layout.astro';
 
 // SEO Meta tags
-const title = "Art Manager | Gestión Profesional de Colecciones de Arte";
-const description = "La plataforma integral para galerías, artistas y coleccionistas. Gestiona inventario, exposiciones, ventas y préstamos con trazabilidad completa y seguridad.";
+const title = "Art Manager | Gestión Profesional y Descubrimiento de Arte";
+const description = "La plataforma integral para galerías y coleccionistas. Gestiona inventario, exposiciones y ventas con trazabilidad completa, o descubre obras únicas en nuestro catálogo público.";
+
+// 1. Definimos el tipo para las obras públicas
+interface ObraPublica {
+  id: number;
+  titulo: string;
+  anio: number;
+  estado: string;
+  imagen_url: string | null;
+  tecnica_nombre: string | null;
+}
+
+// Fetch server-side de obras destacadas
+const API_URL = import.meta.env.SSR 
+  ? import.meta.env.API_URL 
+  : import.meta.env.PUBLIC_API_URL;
+
+// 2. Tipamos la variable para que TS sepa qué contiene
+let obrasDestacadas: ObraPublica[] = [];
+
+try {
+  const res = await fetch(`${API_URL}/obras/publicas?estado=disponible`);
+  if (res.ok) {
+    const todas: ObraPublica[] = await res.json();
+    obrasDestacadas = todas.slice(0, 4);
+  }
+} catch (e) {
+  console.error("Error cargando obras destacadas:", e);
+}
 ---
 
 <Layout title={title} description={description}>
-  <!-- Hero Section -->
-  <section class="relative bg-bg-primary py-20 lg:py-32 overflow-hidden">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-      <h1 class="font-serif text-5xl md:text-6xl font-bold text-text-primary mb-6 leading-tight">
-        Gestiona tu arte con <span class="text-accent">profesionalismo</span>
-      </h1>
-      <p class="text-xl text-text-secondary max-w-2xl mx-auto mb-10 leading-relaxed">
-        Reemplaza las planillas y el caos. Art Manager te ofrece trazabilidad completa, 
-        gestión de exposiciones, ventas y un inventario visual de nivel museo.
-      </p>
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a 
-          href="/login" 
-          class="px-8 py-4 bg-text-primary text-white font-semibold rounded-lg hover:bg-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 text-lg"
-        >
-          Iniciar Sesión
-        </a>
-        <a 
-          href="/catalogo" 
-          class="px-8 py-4 bg-white text-text-primary border border-gray-300 font-semibold rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 text-lg"
-        >
-          Ver Catálogo de Demo
-        </a>
+  
+  <!-- HERO SECTION: Estilo Artsy, tipografía grande, limpio y directo -->
+  <section class="relative bg-neutral-50 border-b border-neutral-200">
+    <div class="max-w-7xl mx-auto px-6 py-24 md:py-32 lg:py-40">
+      <div class="max-w-3xl">
+        <h1 class="font-serif text-5xl md:text-7xl font-bold text-text-primary leading-[1.1] mb-6">
+          El arte, <br class="hidden md:block" />
+          <span class="text-accent">redefinido.</span>
+        </h1>
+        <p class="text-xl md:text-2xl text-text-secondary font-light leading-relaxed mb-10 max-w-2xl">
+          Descubrí obras únicas de artistas contemporáneos y gestioná tu colección con la herramienta profesional que usan las principales galerías.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a 
+            href="/galerias/galeria-demo" 
+            class="inline-flex justify-center items-center px-8 py-4 bg-text-primary text-white font-medium rounded-lg hover:bg-accent transition-colors duration-300 text-lg"
+          >
+            Explorar Catálogo
+          </a>
+          <a 
+            href="/login" 
+            class="inline-flex justify-center items-center px-8 py-4 border border-neutral-300 text-text-primary font-medium rounded-lg hover:border-text-primary hover:bg-neutral-100 transition-colors duration-300 text-lg"
+          >
+            Acceso Galerías
+          </a>
+        </div>
       </div>
-    </div>
-    
-    <!-- Decoración de fondo sutil -->
-    <div class="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full text-text-primary">
-        <path d="M0 100 C 20 0 50 0 100 100 Z" fill="currentColor" />
-      </svg>
     </div>
   </section>
 
-  <!-- Features Section -->
-  <section class="py-20 bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <!-- CURADURÍA DESTACADA: El corazón del estilo Artsy (Imágenes reales) -->
+  <section class="max-w-7xl mx-auto px-6 py-20">
+    <div class="flex items-end justify-between mb-12">
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-widest text-text-secondary mb-2">Selección Actual</p>
+        <h2 class="font-serif text-3xl md:text-4xl font-bold text-text-primary">Obras Destacadas</h2>
+      </div>
+      <a href="/galerias/galeria-demo/artistas" class="hidden md:inline-flex items-center text-sm font-medium text-accent hover:underline">
+        Ver todos los artistas →
+      </a>
+    </div>
+
+    {obrasDestacadas.length > 0 ? (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-12">
+        {obrasDestacadas.map((obra) => (
+          <a href={`/galerias/galeria-demo`} class="group block">
+            <div class="aspect-[3/4] bg-neutral-100 rounded-lg overflow-hidden mb-4 relative">
+              {obra.imagen_url ? (
+                <img 
+                  src={`${API_URL}${obra.imagen_url}`} 
+                  alt={obra.titulo}
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
+                />
+              ) : (
+                <div class="w-full h-full flex items-center justify-center text-neutral-300">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </div>
+              )}
+              <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium text-text-primary uppercase tracking-wide">
+                {obra.estado}
+              </div>
+            </div>
+            <h3 class="font-serif text-lg font-bold text-text-primary group-hover:text-accent transition-colors line-clamp-1">
+              {obra.titulo}
+            </h3>
+            <p class="text-sm text-text-secondary mt-1">
+              {obra.anio} {obra.tecnica_nombre ? `· ${obra.tecnica_nombre}` : ''}
+            </p>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-20 bg-neutral-50 rounded-xl border border-dashed border-neutral-300">
+        <p class="text-text-secondary">No hay obras disponibles para mostrar en este momento.</p>
+      </div>
+    )}
+
+    <div class="mt-12 text-center md:hidden">
+      <a href="/galerias/galeria-demo/artistas" class="inline-flex items-center text-sm font-medium text-accent hover:underline">
+        Ver todos los artistas →
+      </a>
+    </div>
+  </section>
+
+  <!-- SECCIÓN B2B / PROFESIONAL: Manteniendo tus features pero con diseño elevado -->
+  <section class="bg-text-primary text-white py-24">
+    <div class="max-w-7xl mx-auto px-6">
       <div class="text-center mb-16">
-        <h2 class="font-serif text-3xl md:text-4xl font-bold text-text-primary mb-4">
-          Todo lo que necesitas en un solo lugar
-        </h2>
-        <p class="text-text-secondary max-w-2xl mx-auto">
-          Diseñado por y para profesionales del arte.
+        <h2 class="font-serif text-3xl md:text-5xl font-bold mb-6">Tecnología para el ecosistema del arte</h2>
+        <p class="text-lg md:text-xl text-neutral-300 font-light max-w-2xl mx-auto leading-relaxed">
+          Art Manager ofrece herramientas profesionales de inventario, trazabilidad de préstamos y gestión de exposiciones.
         </p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <!-- Feature 1 -->
-        <div class="p-8 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-lg transition-shadow">
-          <div class="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-6">
+        <div class="p-8 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+          <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <h3 class="font-serif text-xl font-bold text-text-primary mb-3">Inventario Visual</h3>
-          <p class="text-text-secondary leading-relaxed">
+          <h3 class="font-serif text-xl font-bold mb-3">Inventario Visual</h3>
+          <p class="text-neutral-300 leading-relaxed">
             Cataloga cada obra con imágenes de alta resolución, dimensiones, técnica y provenance.
           </p>
         </div>
 
         <!-- Feature 2 -->
-        <div class="p-8 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-lg transition-shadow">
-          <div class="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-6">
+        <div class="p-8 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+          <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <h3 class="font-serif text-xl font-bold text-text-primary mb-3">Gestión de Ventas</h3>
-          <p class="text-text-secondary leading-relaxed">
+          <h3 class="font-serif text-xl font-bold mb-3">Gestión de Ventas</h3>
+          <p class="text-neutral-300 leading-relaxed">
             Registra compradores, historial de transacciones y genera reportes de valor de inventario.
           </p>
         </div>
 
         <!-- Feature 3 -->
-        <div class="p-8 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-lg transition-shadow">
-          <div class="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-6">
+        <div class="p-8 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+          <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center mb-6">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <h3 class="font-serif text-xl font-bold text-text-primary mb-3">Exposiciones y Préstamos</h3>
-          <p class="text-text-secondary leading-relaxed">
+          <h3 class="font-serif text-xl font-bold mb-3">Exposiciones y Préstamos</h3>
+          <p class="text-neutral-300 leading-relaxed">
             Controla fechas, ubicaciones y checklists de retiro. Evita superposiciones y pérdidas.
           </p>
         </div>
       </div>
+
+      <div class="mt-16 text-center">
+        <a href="/login" class="inline-block px-8 py-4 bg-white text-text-primary font-semibold rounded-lg hover:bg-neutral-200 transition-colors text-lg">
+          Acceder a la Plataforma
+        </a>
+      </div>
     </div>
   </section>
 
-  <!-- CTA Final -->
-  <section class="py-20 bg-text-primary text-white">
-    <div class="max-w-4xl mx-auto px-4 text-center">
-      <h2 class="font-serif text-3xl md:text-4xl font-bold mb-6">
-        ¿Listo para profesionalizar tu gestión?
-      </h2>
-      <p class="text-lg text-gray-300 mb-8">
-        Únete a las galerías que ya confían en Art Manager para proteger y hacer crecer su patrimonio.
-      </p>
-      <a 
-        href="/login" 
-        class="inline-block px-8 py-4 bg-accent text-white font-semibold rounded-lg hover:bg-accent/90 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 text-lg"
-      >
-        Acceder a la Plataforma
-      </a>
+  <!-- FOOTER SIMPLE Y ELEGANTE -->
+  <footer class="bg-neutral-50 border-t border-neutral-200 py-12">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div class="text-center md:text-left">
+        <p class="font-serif text-xl font-bold text-text-primary">Art Manager</p>
+        <p class="text-sm text-text-secondary mt-1">Tecnología para el ecosistema del arte.</p>
+      </div>
+      <div class="flex gap-8 text-sm text-text-secondary">
+        <a href="/galerias/galeria-demo" class="hover:text-text-primary transition-colors">Catálogo Público</a>
+        <a href="/login" class="hover:text-text-primary transition-colors">Inventario Privado</a>
+        <a href="/docs" target="_blank" class="hover:text-text-primary transition-colors">API Docs</a>
+      </div>
     </div>
-  </section>
+  </footer>
+
 </Layout>
