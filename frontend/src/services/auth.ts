@@ -5,6 +5,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 // Claves únicas para localStorage (prefijadas para evitar colisiones)
 const ACCESS_TOKEN_KEY = 'artmanager_access_token';
 const REFRESH_TOKEN_KEY = 'artmanager_refresh_token';
+const COOKIE_TOKEN_KEY = 'artmanager_token'; // Para compatibilidad con el backend, que también puede usar cookies
 
 // ==========================================
 // Tipos
@@ -24,6 +25,9 @@ export interface LoginResponse {
 export function guardarTokens(tokens: LoginResponse): void {
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
   localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
+  // ← NUEVO: Guardar en cookie para que Astro SSR pueda leerlo
+  // max-age=86400 es 24 horas. SameSite=Lax es seguro para navegación normal.
+  document.cookie = `${COOKIE_TOKEN_KEY}=${tokens.access_token}; path=/; max-age=86400; SameSite=Lax`;
 }
 
 /** Devuelve el access token actual, o null si no hay sesión. */
@@ -40,6 +44,8 @@ export function getRefreshToken(): string | null {
 export function limpiarTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  // ← NUEVO: Borrar la cookie también
+  document.cookie = `${COOKIE_TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
 }
 
 /** ¿Hay una sesión activa? (solo verifica presencia del token, no su validez). */

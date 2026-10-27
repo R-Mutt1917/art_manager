@@ -1,19 +1,52 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import DeleteArtworkButton from '../../../components/DeleteArtworkButton.tsx';
-import { getObraById, getTecnica, getComprador } from '../../../services/api';
-import RouteGuard from '../../../components/RouteGuard.tsx';
+import { getTecnica, getComprador } from '../../../services/api';
 
 export const prerender = false;
 
 const { id } = Astro.params;
 const obraId = Number(id);
-const obra = await getObraById(obraId);
+
+// 1. VERIFICACIÓN DE AUTH SERVER-SIDE
+// Astro no puede leer localStorage. Leemos el token de la cookie.
+// ⚠️ IMPORTANTE: Asegúrate de que tu proceso de login guarde el token en una cookie 
+// llamada 'artmanager_token' (o cambia 'artmanager_token' aquí por el nombre real que uses).
+const cookieToken = Astro.cookies.get('artmanager_token')?.value;
+
+if (!cookieToken) {
+  // Si no hay cookie, redirigimos al login inmediatamente en el servidor.
+  return Astro.redirect('/login');
+}
+
+// 2. FETCH DIRECTO CON EL TOKEN DE LA COOKIE
+const API_URL = import.meta.env.SSR ? import.meta.env.API_URL : import.meta.env.PUBLIC_API_URL;
+let obra = null;
+
+try {
+  const res = await fetch(`${API_URL}/obras/${obraId}`, {
+    headers: {
+      'Authorization': `Bearer ${cookieToken}`,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (res.status === 401 || res.status === 403) {
+    return Astro.redirect('/login');
+  }
+
+  if (res.ok) {
+    obra = await res.json();
+  }
+} catch (error) {
+  console.error("Error cargando la obra:", error);
+}
 
 if (!obra) {
   return new Response(null, { status: 404 });
 }
 
+// 3. DATOS ADICIONALES (estos pueden usar tu api.ts normal)
 const tecnica = obra.tecnica_id ? await getTecnica(obra.tecnica_id) : null;
 const comprador = obra.comprador_id ? await getComprador(obra.comprador_id) : null;
 
@@ -33,16 +66,10 @@ const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisici�
 
 <Layout title={obra.titulo} description={`Detalles de la obra ${obra.titulo}`}>
   
-  <!-- 
-    PROTECCIÓN DE RUTA: redirige a /login si no hay token.
-    Debe estar DENTRO del Layout para que se ejecute su useEffect.
-  -->
-  <RouteGuard client:only="react" />
-  
   <nav class="mb-8 flex flex-wrap items-center gap-3" aria-label="Navegación de acciones">
-    <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-2 py-1">
+    <a href="/inventario" class="inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded px-2 py-1">
       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-      Volver al catálogo
+      Volver al inventario
     </a>
     <a href={`/obras/${obra.id}/editar`} class="inline-flex items-center gap-2 text-sm font-medium px-3 py-1.5 bg-text-primary text-white rounded-lg hover:bg-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
@@ -54,7 +81,7 @@ const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisici�
 
   <article class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
     
-    <!-- Columna Izquierda: Solo la Imagen (Limpia, sin botones de admin) -->
+    <!-- Columna Izquierda: Solo la Imagen -->
     <figure class="relative w-full rounded-2xl overflow-hidden shadow-lg bg-gray-100">
       <img 
         src={imageUrl} 
@@ -107,9 +134,18 @@ const estadoLegible = obra.estado === 'disponible' ? 'Disponible para adquisici�
         </div>
       </dl>
 
+      {obra.statement && (
+        <div class="bg-accent/5 p-6 rounded-xl border border-accent/20 mb-8">
+          <h3 class="font-serif text-lg font-bold text-text-primary mb-2">Statement / Memoria Conceptual</h3>
+          <p class="text-text-primary leading-relaxed italic border-l-2 border-accent pl-4">
+            {obra.statement}
+          </p>
+        </div>
+      )}
+
       {obra.notas && (
         <div class="bg-gray-50 p-6 rounded-xl border border-gray-100 mb-8">
-          <h3 class="font-serif text-lg font-bold text-text-primary mb-2">Notas del curador</h3>
+          <h3 class="font-serif text-lg font-bold text-text-primary mb-2">Notas del curador (Privado)</h3>
           <p class="text-text-secondary leading-relaxed italic">"{obra.notas}"</p>
         </div>
       )}
