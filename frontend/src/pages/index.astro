@@ -16,9 +16,14 @@ interface ObraPublica {
 }
 
 // Fetch server-side de obras destacadas
+// API_URL: red interna de Docker (http://backend:8000) → SOLO para fetch() en el servidor
 const API_URL = import.meta.env.SSR 
   ? import.meta.env.API_URL 
   : import.meta.env.PUBLIC_API_URL;
+
+// ← FIX: URL pública (http://localhost:8000) → para TODO lo que carga el NAVEGADOR
+// (img src, links, meta tags). El browser vive fuera de Docker y no resuelve "backend".
+const PUBLIC_URL = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000';
 
 // 2. Tipamos la variable para que TS sepa qué contiene
 let obrasDestacadas: ObraPublica[] = [];
@@ -84,7 +89,7 @@ try {
             <div class="aspect-[3/4] bg-neutral-100 rounded-lg overflow-hidden mb-4 relative">
               {obra.imagen_url ? (
                 <img 
-                  src={`${API_URL}${obra.imagen_url}`} 
+                  src={`${PUBLIC_URL}${obra.imagen_url}`} 
                   alt={obra.titulo}
                   class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
