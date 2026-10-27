@@ -1,298 +1,171 @@
 # ART MANAGER — Documento Maestro de Proyecto y Roadmap
 
-> **Propósito de este documento:** Ser la fuente única de verdad del proyecto.
-> Cualquier developer o IA que continúe el trabajo DEBE leer esto primero.
+> **Propósito de este documento:** Ser la fuente única de verdad del proyecto.  
+> Cualquier developer o IA que continúe el trabajo DEBE leer esto primero.  
 > **Regla de oro:** Al cerrar cada fase o hito, actualizar este documento (sección Changelog).
 
-**Fecha de última actualización:** 21 de octubre de 2026  
-**Estado actual:** Fase 2 COMPLETA (Autenticación + Roles + Auditoría). Próximo: Fase 3 (Multi-tenancy SaaS).
+**Fecha de última actualización:** 27 de octubre de 2026  
+**Estado actual:** ✅ **Fase 3 COMPLETA** (Multi-tenancy, SSR Auth, URLs Semánticas). Próximo: Fase 4 (Refactor de Roles + Features de Dominio).
 
----
+## 1\. VISIÓN DEL PRODUCTO
 
-## 1. VISIÓN DEL PRODUCTO
-
-**Art Manager** es una **plataforma SaaS** de gestión integral para galerías de arte latinoamericanas, artistas visuales y curadores independientes.
+**Art Manager** es una **plataforma SaaS multi-tenant** de gestión integral para galerías de arte latinoamericanas, artistas visuales y curadores independientes.
 
 **Propuesta de valor diferenciada:**
-> "Cada galería tiene su propia plataforma aislada (multi-tenant) con URLs semánticas (`/galeria-sur`, `/ruth-benzacar`), su catálogo, artistas y equipo, manteniendo datos completamente segregados. Todo con trazabilidad profesional y, a futuro, IA aplicada al mercado del arte."
+
+> "Cada galería tiene su propia plataforma aislada con URLs semánticas (`/galeria-sur`, `/galeria-sur/artistas/julio-le-parc`), su catálogo, artistas y equipo, manteniendo datos completamente segregados. Todo con trazabilidad profesional, statement curatorial público y, a futuro, IA aplicada al mercado del arte."
 
 **Usuarios objetivo:**
-- Galerías medianas a grandes (Buenos Aires, CDMX, Bogotá, Santiago)
-- Curadores independientes gestionando múltiples artistas
-- Artistas consagrados con inventarios extensos
-- Coleccionistas serios con portfolios
 
----
+-   Galerías medianas a grandes (Buenos Aires, CDMX, Bogotá, Santiago)
+-   Curadores independientes gestionando múltiples artistas
+-   Artistas consagrados con inventarios extensos
+-   Coleccionistas serios con portfolios
 
-## 2. STACK TÉCNICO
+## 2\. STACK TÉCNICO
 
-| Capa | Tecnología | Notas |
-|------|-----------|-------|
-| Backend | FastAPI + SQLModel + SQLite (→ PostgreSQL en Fase 3) | Arquitectura en capas |
-| Frontend | Astro 7 (SSR) + React islands + Tailwind CSS v4 | Islas React solo donde se necesita interactividad |
-| Auth | PyJWT + bcrypt | Access + refresh tokens |
-| Infra | Docker Compose | Hot reload real en ambos servicios |
-| Testing | pytest + fastapi.TestClient | **~33 tests passing** |
-| Gestores | pnpm (front) / pip + venv (back, solo para tests locales) | |
+| Capa     | Tecnología                                                   | Notas                                                       |
+| -------- | ------------------------------------------------------------ | ----------------------------------------------------------- |
+| Backend  | FastAPI + SQLModel + SQLite (→ PostgreSQL en Fase 4)         | Arquitectura en capas, aislamiento por galeria_id           |
+| Frontend | Astro 7 (SSR output: 'server') + React islands + Tailwind v4 | Islas React solo donde se necesita interactividad           |
+| Auth     | PyJWT + bcrypt + Cookies SSR (artmanager_token)              | Access tokens en cookie para SSR, localStorage para cliente |
+| Infra    | Docker Compose                                               | Hot reload real en ambos servicios                          |
+| Testing  | pytest (~67 passing) + Playwright (E2E setup)                | Tests unitarios backend + E2E frontend                      |
+| Gestores | pnpm (front) / pip + venv (back, solo para tests locales)    |                                                             |
 
 ### Estructura del monorepo
+
 ```
 art_manager/
 ├── docker-compose.yml
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # lifespan: crea tablas + seeds
+│   │   ├── main.py              # lifespan: crea tablas + seeds (incluye dev users)
 │   │   ├── database.py          # engine, get_session
-│   │   ├── seed.py              # 7 técnicas + admin user
+│   │   ├── seed.py              # Técnicas, admin, Galería Demo, Artista Demo, Dev Users
 │   │   ├── core/
 │   │   │   ├── config.py        # Pydantic Settings + JWT config
 │   │   │   ├── security.py      # bcrypt + PyJWT
-│   │   │   └── dependencies.py  # get_current_user + require_role
-│   │   ├── models/              # Obra, Tecnica, Comprador, Exposicion, Prestamo, Usuario, AuditLog
-│   │   ├── schemas/             # Pydantic Create/Update/Read por entidad
-│   │   ├── services/            # Lógica de negocio + AuditService
-│   │   └── routers/             # obras, tecnicas, compradores, exposiciones, prestamos, dashboard, auth, audit
-│   └── tests/                   # ~34 tests
+│   │   │   └── dependencies.py  # get_current_user, require_role, get_current_galeria
+│   │   ├── models/              # Galeria, Artista, Obra, Tecnica, Comprador, Exposicion, Prestamo, Usuario, AuditLog
+│   │   ├── schemas/             # Pydantic Create/Update/Read + PublicRead (velados)
+│   │   ├── services/            # Lógica de negocio filtrada por galeria_id
+│   │   └── routers/             # obras, tecnicas, compradores, exposiciones, prestamos, dashboard, auth, audit, galerias
+│   └── tests/                   # ~67 tests passing
 └── frontend/
+    ├── playwright/              # Setup E2E (config, e2e specs)
     └── src/
-        ├── pages/               # Landing, catálogo, inventario, login, dashboard, etc.
+        ├── pages/               # Landing, galerias/[slug], obras/[id]/index.astro, etc.
         ├── components/          # ArtworkForm, ArtworkCardPublic, HeaderNav, RouteGuard, etc.
         ├── layouts/Layout.astro # Layout global con HeaderNav (isla React)
-        └── services/            # api.ts, auth.ts, httpClient.ts, publicApi.ts
+        └── services/            # api.ts, auth.ts (cookie + localStorage), httpClient.ts, apiPublic.ts
 ```
-
 ### Variables de entorno (CRÍTICO)
-- `PUBLIC_API_URL=http://localhost:8000` → código del **navegador** (React).
-- `API_URL=http://backend:8000` → código del **servidor** (Astro SSR, red interna Docker).
-- `SECRET_KEY` → clave para firmar JWTs (32+ chars en producción).
-- Definidas en `docker-compose.yml` y `frontend/.env`.
 
----
+-   `PUBLIC_API_URL=http://localhost:8000` → código del **navegador** (React, `<img src>`, `<a href>`).
+-   `API_URL=http://backend:8000` → código del **servidor** (Astro SSR frontmatter, red interna Docker).
+-   `SECRET_KEY` → clave para firmar JWTs (32+ chars en producción).
+-   Definidas en `docker-compose.yml` y `frontend/.env`.
 
-## 3. ESTADO ACTUAL — LO QUE FUNCIONA ✅
+## 3\. ESTADO ACTUAL — LO QUE FUNCIONA ✅
 
 ### Backend
-- ✅ **CRUD de obras** con subida de imagen y upsert de técnica por nombre.
-- ✅ **PUT de obras** con FormData (reemplaza imagen en la misma operación).
-- ✅ **Soft delete** de obras y compradores.
-- ✅ **CRUD completo de técnicas** con validación de obras asociadas.
-- ✅ **Ventas** que cambian estado de obra a `vendida`.
-- ✅ **Exposiciones** con validación de superposición de fechas + checklist.
-- ✅ **Préstamos** con ciclo completo y validación de obra vendida.
-- ✅ **Filtros avanzados** en GET /obras/ (estado, técnica, precio, búsqueda).
-- ✅ **Dashboard** con métricas agregadas y top técnicas.
-- ✅ **Autenticación JWT**: register, login, refresh (Fase 2).
-- ✅ **Autorización por roles**: ADMIN/CURADOR/ASESOR/ARTISTA/VIEWER.
-- ✅ **Catálogo público velado**: GET /obras/publicas sin datos sensibles.
-- ✅ **Auditoría**: tabla audit_logs con eventos de auth (Fase 2.9).
-- ✅ **CORS** habilitado + servido de imágenes en /uploads.
+
+-   ✅ **Multi-tenancy total**: Modelos `Galeria` y `Artista`. Todas las entidades (`Obra`, `Comprador`, `Prestamo`, `Exposicion`, `Usuario`) tienen `galeria_id` y están aisladas por middleware.
+-   ✅ **Seed inteligente**: Crea Galería Demo, Artista Demo, migra datos legacy y crea 4 usuarios demo por rol (`dueno`, `curador`, `asesor`, `viewer` con pass `demo1234`).
+-   ✅ **SSR Auth**: Endpoints privados validan cookie `artmanager_token`.
+-   ✅ **Catálogo público semántico**: `/galerias/{slug}`, `/galerias/{slug}/artistas`, `/galerias/{slug}/artistas/{artistaSlug}`.
+-   ✅ **Campo `**statement**`**: Texto curatorial público en obras, separado de `notas` privadas.
+-   ✅ **~67 tests passing**: Cobertura completa de aislamiento multi-tenant y CRUD.
 
 ### Frontend
-- ✅ **Landing page** con SEO en `/`.
-- ✅ **Catálogo público velado** en `/catalogo` (blur CSS sobre imágenes, sin precios).
-- ✅ **Catálogo privado** en `/inventario` (precios, HD, filtros) - protegido por RouteGuard.
-- ✅ **Login** en `/login` con tokens en localStorage.
-- ✅ **Interceptor HTTP** que adjunta Bearer automáticamente (SSR-safe).
-- ✅ **HeaderNav** como isla de React: muestra UI adaptativa según auth.
-- ✅ **RouteGuard** que protege páginas privadas.
-- ✅ **Dashboard** con KPIs y Chart.js (usa httpClient).
-- ✅ **Formulario reutilizable** ArtworkForm.tsx (crear/editar).
 
-### Tests: ~33 PASSED
-- test_auth.py (8): register, login, refresh, seed admin.
-- test_obras.py (11): CRUD + filtros + autorización.
-- test_tecnicas.py (4): CRUD + autorización.
-- test_compradores.py (2): ventas.
-- test_exposiciones.py (3): asignación + checklist.
-- test_prestamos.py (2): ciclo completo.
-- test_audit.py (3): logs de login y permisos.
+-   ✅ **Landing page estilo Artsy**: SSR fetch de obras destacadas, tipografía elegante, doble CTA (B2C/B2B).
+-   ✅ **Rutas públicas funcionales**: Perfiles de galería y artistas con imágenes cargando correctamente (usando `PUBLIC_API_URL`).
+-   ✅ **SSR Auth real**: `obras/[id]/index.astro` y `editar.astro` leen la cookie en el frontmatter y hacen `Astro.redirect('/login')` si no hay token, evitando flashes de contenido no autorizado.
+-   ✅ **Playwright E2E**: Configurado con `@playwright/test`, `@types/node`, y scripts `test:e2e`, `test:e2e:ui`.
 
----
+## 4\. CONTRATO REAL DE LA API (referencia rápida)
 
-## 4. CONTRATO REAL DE LA API (referencia rápida)
+### Rutas Públicas Semánticas (Sin Auth)
 
-### Auth (público)
-| Método | Ruta | Body | Notas |
-|--------|------|------|-------|
-| POST | `/auth/register` | JSON UsuarioCreate | Rol siempre VIEWER |
-| POST | `/auth/login` | JSON LoginRequest | Devuelve access + refresh tokens |
-| POST | `/auth/refresh` | JSON RefreshRequest | Renueva par de tokens |
+| Método | Ruta                                     | Notas                                          |
+| ------ | ---------------------------------------- | ---------------------------------------------- |
+| GET    | /galerias/{slug}                         | Perfil de galería + contadores                 |
+| GET    | /galerias/{slug}/artistas                | Listado de artistas activos                    |
+| GET    | /galerias/{slug}/artistas/{artista_slug} | Perfil artista + obras veladas (con statement) |
 
-### Obras
-| Método | Ruta | Auth | Notas |
-|--------|------|------|-------|
-| POST | `/obras/` | ADMIN, CURADOR | FormData |
-| GET | `/obras/` | Público | Con filtros |
-| GET | `/obras/publicas` | Público | Sin datos sensibles |
-| GET | `/obras/{id}` | Público | 404 si inactiva |
-| PUT | `/obras/{id}` | ADMIN, CURADOR | FormData |
-| DELETE | `/obras/{id}` | ADMIN, CURADOR | Soft delete |
-| POST | `/obras/{id}/imagen` | ADMIN, CURADOR | file |
-| DELETE | `/obras/{id}/imagen` | ADMIN, CURADOR | |
+### Auth & Multi-tenancy
 
-### Técnicas (CRUD protegido, GETs públicos)
-- POST/PUT/DELETE requieren ADMIN o CURADOR
-- DELETE falla con 400 si tiene obras asociadas
+-   Todos los endpoints de escritura (`POST`, `PUT`, `DELETE`) en `/obras/`, `/compradores/`, etc., requieren `Authorization: Bearer <token>` Y que el recurso pertenezca a la `galeria_id` del usuario.
+-   `GET /dashboard/stats`: Filtra métricas agregadas estrictamente por `galeria_id`.
 
-### Compradores
-- POST/PUT: ADMIN, ASESOR
-- DELETE: solo ADMIN
-- POST /compradores/ventas/registrar: ADMIN, ASESOR
-- GETs: públicos
-
-### Exposiciones (ADMIN, CURADOR para escribir)
-### Préstamos (solo ADMIN para escribir)
-### Dashboard (GET /dashboard/stats: ADMIN, CURADOR, ASESOR)
-### Auditoría (GET /audit/logs: solo ADMIN)
-
-### Estados de obra (enum EstadoObra)
-`disponible` · `vendida` · `en_exposicion` · `en_prestamo`
-
-### Roles de usuario (enum RolUsuario)
-`admin` · `curador` · `asesor` · `artista` · `viewer`
-
----
-
-## 5. LECCIONES APRENDIDAS / TRAMPAS CONOCIDAS 🕳️
+## 5\. LECCIONES APRENDIDAS / TRAMPAS CONOCIDAS 🕳️ (ACTUALIZADO)
 
 ### Arquitectura & Docker
-1. **NUNCA montar un volumen nombrado sobre `/app`**: tapa el código del bind mount y rompe hot reload.
-2. **Dos URLs de API**: `PUBLIC_API_URL` (cliente, `localhost:8000`) vs `API_URL` (servidor Docker, `backend:8000`). El `httpClient.ts` debe elegir según `typeof window === 'undefined'`.
-3. **CORS**: el navegador bloquea fetch cross-origin; el SSR de Astro no. Por eso existen DOS variables.
-4. **Reset nuclear controlado:** `docker compose down -v` borra BD y volúmenes.
 
-### FastAPI
-5. **Orden de paths**: paths estáticos (`/publicas`) SIEMPRE antes que dinámicos (`/{id}`), sino FastAPI interpreta el texto como parámetro.
-6. **Enums en Python**: miembros con MAYÚSCULAS (`EstadoObra.DISPONIBLE`), `.value` para el string.
-7. **Tests con FormData**: `data=` + `files=`, NO JSON.
-8. **Bearer token sin header**: FastAPI HTTPBearer devuelve 403 (no 401) cuando falta el header.
+1.  **Dos URLs, dos consumidores**:
+2.  -   `API_URL` (`http://backend:8000`) → **SOLO** para `fetch()` en el frontmatter de Astro (server-to-server en red Docker).
+    -   `PUBLIC_API_URL` (`http://localhost:8000`) → Para **TODO** lo que renderiza el navegador (`<img src>`, `<a href>`, meta tags). Mezclarlas causa imágenes rotas o fetches fallidos.
+3.  **Astro SSR + localStorage**: `localStorage` no existe en el servidor. Para proteger páginas con SSR, leer el token de la cookie (`Astro.cookies.get('artmanager_token')`) y usar `Astro.redirect('/login')` en el frontmatter. No confiar en `RouteGuard` de React para evitar que el HTML sensible se genere.
+4.  **Ritual de reinicio de Astro en Docker**: `docker compose restart` a menudo deja procesos zombie y no limpia la cache de rutas. El reset correcto es: `docker compose down` → `Remove-Item frontend\.astro, frontend\node_modules\.vite` → `docker compose up -d`.
+5.  **NUNCA montar un volumen nombrado sobre `**/app**`**: tapa el código del bind mount y rompe el hot reload.
 
-### Astro + React
-9. **SSR vs Cliente**: `localStorage` solo existe en el navegador. Usar `typeof window !== 'undefined'` para código isomórfico.
-10. **Astro y rutas dinámicas**: crear carpetas nuevas (`[id]/`) con servidor corriendo a veces requiere `docker compose restart frontend`.
-11. **React y SVG**: camelCase en JSX (`strokeWidth`), kebab-case en .astro (`stroke-width`).
-12. **Flash of Unauthenticated Content**: evitar con `useState(checkAuth())` síncrono + `transition-all` CSS.
-13. **Scripts con imports en Astro**: siempre `<script type="module">`.
-14. **Arquitectura de Islas**: Astro envía 0 JS por defecto; `client:load` o `client:only="react"` hidrata donde se necesita interactividad.
+### PowerShell & Windows
 
-### Seguridad
-15. **Tokens en localStorage son MVP**: vulnerables a XSS. En producción migrar a cookies httpOnly.
-16. **Interface Segregation (SOLID)**: interfaces separadas para datos públicos (`PublicObra`) vs privados (`Obra`).
-17. **Blur CSS vs Server-side blur**: blur del cliente es vulnerable a DevTools; para producción usar thumbnails generados con Pillow.
-18. **Register siempre crea VIEWER**: seguridad por defecto, evita que un atacante se registre como ADMIN pasando campos en JSON.
+5.  **PowerShell + corchetes = wildcard**: Comandos como `Test-Path`, `Move-Item`, `Select-String` interpretan `[slug]` como un patrón de caracteres. **Solución**: Usar el flag `-LiteralPath` o métodos de .NET: `[System.IO.File]::Move("$PWD\src\pages\galerias\[slug].astro", "$PWD\src\pages\galerias\[slug]\index.astro")`.
+6.  **Docker bind mount + Windows**: Las operaciones de move/write de .NET desde PowerShell a veces no se propagan bien al contenedor Linux (archivos de 0 bytes o no vistos). **Solución**: Abrir el archivo en VS Code y guardar (`Ctrl+S`), o usar `printf`/`cat` directamente dentro del contenedor (`docker compose exec frontend sh -c "..."`).
 
-### Testing
-19. **Test isolation**: cada test con su propia BD limpia (drop_all al final).
-20. **Pylance warnings**: seleccionar el interpreter del venv en VS Code.
-21. **Deuda técnica**: `datetime.utcnow()` deprecado (migrar a `datetime.now(datetime.UTC)`).
+### FastAPI & Testing
 
----
+7.  **Orden de paths**: Paths estáticos (`/publicas`) SIEMPRE antes que dinámicos (`/{id}`), sino FastAPI interpreta el texto como parámetro.
+8.  **Playwright en monorepo**: Instalar `@playwright/test` y `@types/node` como dev dependencies en el frontend. Configurar `playwright.config.ts` con `fullyParallel: false` y `workers: 1` para evitar conflictos de base de datos entre tests simultáneos.
 
-## 6. ROADMAP POR FASES
+## 6\. ROADMAP POR FASES
 
 ### ✅ FASE 1 — CRUD Completo y Pulido (COMPLETA)
-- [x] F1.1 Editar obra: `/obras/[id]/editar` con form React prellenado.
-- [x] F1.2 Eliminar obra con modal de confirmación.
-- [x] F1.3 Reemplazar/eliminar imagen desde formulario de edición.
-- [x] F1.4 CRUD de técnicas con validación de obras asociadas.
-- [x] F1.5 Filtros avanzados en catálogo (query params + debounce).
-- [x] F1.6 Dashboard con KPI cards + Chart.js.
-- [x] F1.7 Navegación global en Layout.
 
 ### ✅ FASE 2 — Autenticación, Roles y Auditoría (COMPLETA)
-- [x] 2.1 Modelo `Usuario` con roles (ADMIN/CURADOR/ASESOR/ARTISTA/VIEWER).
-- [x] 2.2 Hash bcrypt + JWT (access + refresh).
-- [x] 2.3 Endpoints `/auth/register`, `/login`, `/refresh`.
-- [x] 2.4 Dependencias `get_current_user` + `require_role()`.
-- [x] 2.5 Protección de endpoints por matriz de permisos.
-- [x] 2.6 Catálogo público velado (`/obras/publicas`).
-- [x] 2.7 Seed de usuario admin.
-- [x] 2.8 Tests de auth y autorización.
-- [x] 2.9 Auditoría (`audit_logs` + eventos de login/registro).
 
-**Frontend Fase 2:**
-- [x] F2F-1 Página `/login` estática.
-- [x] F2F-2 Servicio `auth.ts` con localStorage.
-- [x] F2F-3 Interceptor HTTP (Bearer automático + manejo 401/403).
-- [x] F2F-4 Landing page con SEO.
-- [x] F2F-5 Catálogo velado (blur + datos públicos).
-- [x] F2F-6 UI condicional (HeaderNav como isla React).
-- [x] F2F-7 Route Guards + `/inventario` (catálogo privado).
+### ✅ FASE 3 — Multi-tenancy y Plataforma SaaS (COMPLETA)
 
-### 🟠 FASE 3 — Multi-tenancy y Plataforma SaaS (SIGUIENTE PRIORIDAD)
+-   3.1 Modelos `Galeria` y `Artista` + FK `galeria_id` en todas las entidades.
+-   3.2 Aislamiento de datos: Middleware `get_current_galeria()` y filtros en todos los services.
+-   3.3 URLs semánticas públicas: `/galerias/{slug}`, `/artistas`, etc.
+-   3.4 Campo `statement` curatorial público en obras.
+-   3.5 Landing page pública estilo Artsy con SSR fetch.
+-   3.6 Auth SSR robusto: Cookies + `Astro.redirect` en frontmatter.
+-   3.7 Setup de Playwright E2E.
 
-**Objetivo:** Convertir el sistema en plataforma para N galerías.
+### 🔵 FASE 4 — Refactor de Roles y Features de Dominio (SIGUIENTE PRIORIDAD)
 
-#### 3.1 Modelos de multi-tenancy
-- Modelo `Galeria`: slug, nombre, logo, bio, ubicación, sitio_web, configuración.
-- Modelo `Artista`: galeria_id, nombre, slug, bio, foto_perfil, cv_url.
-- Refactor `Obra`: agregar `artista_id` + `galeria_id` (FKs).
-- Refactor `Usuario`: agregar `galeria_id` (pertenencia).
-- Migración: asignar datos existentes a "Galería Demo".
+**Objetivo:** Resolver la deuda arquitectónica de roles y agregar valor de dominio.
 
-#### 3.2 Aislamiento de datos
-- Middleware `get_current_galeria()` que filtra por `galeria_id`.
-- Todas las queries incluyen `WHERE galeria_id = X`.
-- Tests de aislamiento (Galería A no ve datos de Galería B).
+#### 4.1 Refactor de Jerarquía de Roles (CRÍTICO)
 
-#### 3.3 URLs semánticas (SEO)
-```
-Público:
-  /                           → Landing plataforma
-  /galerias                   → Directorio
-  /galeria-sur                → Home galería
-  /galeria-sur/artistas       → Listado artistas
-  /galeria-sur/julio-le-parc  → Perfil artista + obras
-  /galeria-sur/obras/42       → Detalle público velado
+-   **Problema actual**: `ADMIN` actúa como super-usuario global. Un curador que trabaja en 2 galerías necesita 2 emails distintos.
+-   **Solución**:
+-   -   Crear modelo `UserAccount` (identidad global: email, password).
+    -   Crear modelo `UserGalleryRole` (tabla intermedia: `user_id`, `galeria_id`, `rol`).
+    -   Flujo: Super Admin crea la plataforma → Dueño de Galería se registra → Dueño invita a Curadores/Asesores a SU galería específica.
+    -   Un usuario (`juan@ejemplo.com`) puede ser `ADMIN` en Galería A y `CURADOR` en Galería B.
 
-Privado:
-  /app/inventario             → CRUD obras
-  /app/artistas               → CRUD artistas
-  /app/dashboard              → Métricas de la galería
-```
+#### 4.2 Rol ARTISTA (Diferenciador)
 
-#### 3.4 Onboarding de galerías
-- Endpoint `POST /galerias/register` (self-service).
-- Wizard: datos → admin user → primera obra.
-- Subdominio opcional: `galeriasur.artmanager.com`.
+-   Acceso limitado para que el artista vea SUS obras, edite su bio/statement y proponga nuevas obras (estado "pendiente" para aprobación del curador).
 
-#### 3.5 Migración SQLite → PostgreSQL
-- Necesario para multi-tenancy robusto.
-- Scripts de migración con Alembic.
+#### 4.3 Features de Dominio
 
-#### 3.6 Planes de suscripción
-- Modelo `Suscripcion`: plan (free/pro/enterprise), fecha_vencimiento.
-- Límites por plan: obras máximas, usuarios, storage.
+-   Certificados de autenticidad en PDF con QR.
+-   Provenance (timeline de la obra).
+-   Exportar inventario a PDF/Excel (reportes para ferias).
+-   Búsqueda y filtros avanzados en el catálogo público.
 
-### 🔵 FASE 4 — Features de Dominio
-- Certificados de autenticidad en PDF con QR.
-- Provenance (timeline de la obra).
-- Condition reports (fotos antes/después).
-- Sistema de ofertas y negociación.
-- Modo "Viewing Room" (Three.js).
+## 7\. PRÓXIMAS TAREAS INMEDIATAS
 
-### 🟣 FASE 5 — IA Aplicada al Arte
-- Auto-clasificación de técnica/estilo (GPT-4 Vision / CLIP).
-- Descripción curatorial automática.
-- Valuación asistida por comparables (RAG).
-- Detección de atribución.
-- Recomendación obra ↔ exposición.
-
----
-
-## 7. PRÓXIMAS TAREAS INMEDIATAS
-
-### Cerrar Fase 2 (pendiente de esta sesión)
-- [x] Commit final de Fase 2 + actualizar docs.
-
-### Arrancar Fase 3 (siguiente sesión)
-- [ ] Diseñar modelos `Galeria` y `Artista` (esquema de datos).
-- [ ] Planear migración SQLite → PostgreSQL.
-- [ ] Refactor de `Obra` para incluir `artista_id` + `galeria_id`.
-- [ ] Middleware de aislamiento por `galeria_id`.
-- [ ] URLs semánticas públicas.
-
----
+-   **T8-2**: Escribir los primeros tests E2E con Playwright (`01-auth.spec.ts`, `02-roles.spec.ts`).
+-   **T8-3**: Documentar formalmente la deuda de roles en el backlog de Fase 4.
+-   **T9**: Iniciar refactor de `UserAccount` + `UserGalleryRole` (requiere migración de datos y actualización de `dependencies.py`).
 
 ## 8. CHEATSHEET DE COMANDOS
 
@@ -301,68 +174,56 @@ Privado:
 docker compose up -d
 docker compose logs -f
 
-# Reiniciar servicios (cuando hay cambios en archivos)
-docker compose restart backend
-docker compose restart frontend
+# Reset nuclear controlado (CUANDO ASTRO NO DETECTA RUTAS O HAY ZOMBIES)
+docker compose down
+Remove-Item -Recurse -Force frontend\.astro -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force frontend\node_modules\.vite -ErrorAction SilentlyContinue
+docker compose up -d
 
-# Reset completo (PELIGROSO)
-docker compose down -v
-docker compose up -d --build
+# Mover archivos con corchetes de forma segura en Windows
+[System.IO.File]::Move("$PWD\src\pages\galerias\[slug].astro", "$PWD\src\pages\galerias\[slug]\index.astro")
 
 # Tests backend
 cd backend; .\venv\Scripts\activate; pytest tests/ -v
 del test_database.db 2>$null   # Reset BD de tests
 
-# Instalar dependencias locales (para Pylance)
-cd backend
-pip install -r requirements.txt
+# Tests E2E Frontend
+cd frontend
+pnpm test:e2e          # Correr todos los tests E2E en terminal
+pnpm test:e2e:ui       # Abrir interfaz gráfica de Playwright
+pnpm test:e2e:debug    # Modo debug paso a paso
 
 # Git
 git add .
 git commit -m "tipo(ámbito): descripción" -m "Detalle opcional"
-git push origin main
+git push origin develop
 ```
-
 ---
 
-## 9. DECISIONES PENDIENTES
+## 9\. DECISIONES PENDIENTES
 
-- [ ] **Multi-tenancy strategy**: Shared DB (recomendado MVP) vs Database-per-tenant (escala grande).
-- [ ] **Roles extendidos**: ¿Agregar rol DUEÑO_GALERIA con permisos sobre suscripción?
-- [ ] **Dominio y marca**: `artmanager.com` vs algo más descriptivo.
-- [ ] **Deploy**: Railway / Fly.io / VPS propio.
-- [ ] **CDN de imágenes**: Cloudflare R2 / AWS S3 en Fase 3.
-- [ ] **Subdominios dinámicos**: Caddy vs Nginx con wildcard SSL.
+-   **Arquitectura de Roles**: Aprobar el cambio a `UserAccount` + `UserGalleryRole` (Prioridad Alta).
+-   **Migración a PostgreSQL**: Planificar el uso de Alembic antes de que la BD de SQLite crezca demasiado con datos de prueba.
+-   **Deploy**: Definir si se usa Railway, Fly.io o VPS propio para la demo pública.
+-   **CDN de imágenes**: Evaluar Cloudflare R2 o AWS S3 para las imágenes subidas en Fase 4.
 
----
+## 10\. CHANGELOG DE HITOS
 
-## 10. CHANGELOG DE HITOS
+### Día X — Cierre de Fase 3: Multi-tenancy, SSR Auth, URLs Semánticas y Playwright
+
+-   **Backend**: Modelos `Galeria` y `Artista`. Refactor de `Obra`, `Comprador`, `Prestamo`, `Exposicion` con `galeria_id`.
+-   **Backend**: Aislamiento total en Services y Routers. Seed de usuarios demo por rol (`demo1234`).
+-   **Backend**: Campo `statement` (público) añadido a `Obra`, separado de `notas` (privado).
+-   **Backend**: ~67 tests passing validando el aislamiento multi-tenant.
+-   **Frontend**: Rutas públicas semánticas (`/galerias/{slug}`, etc.) con `apiPublic.ts` (fetch server-side).
+-   **Frontend**: Landing page estilo Artsy con fetch SSR de obras destacadas.
+-   **Frontend**: Auth SSR robusto: `obras/[id]` y `editar` leen cookie `artmanager_token` y redirigen con `Astro.redirect` si no hay sesión.
+-   **Frontend**: Fix crítico de imágenes: separación estricta de `API_URL` (server) y `PUBLIC_API_URL` (browser).
+-   **Frontend**: Setup completo de Playwright E2E con `@types/node` y configuración secuencial.
+-   **Arquitectura**: Identificada y documentada la deuda crítica de jerarquía de roles (`UserAccount` vs `UserGalleryRole`).
 
 ### Día 4 — Cierre de Fase 2: Auth completo + Auditoría + Route Guards
-- **Backend**: Modelo Usuario + JWT (access + refresh) + bcrypt.
-- **Backend**: Endpoints /auth/register, /login, /refresh.
-- **Backend**: Dependencias `get_current_user` y `require_role()`.
-- **Backend**: Matriz de permisos aplicada a todos los routers (obras, técnicas, compradores, exposiciones, préstamos, dashboard).
-- **Backend**: Endpoint GET /obras/publicas (catálogo velado sin datos sensibles).
-- **Backend**: Tabla audit_logs + AuditService + endpoint GET /audit/logs (solo ADMIN).
-- **Backend**: ~34 tests passing (incluyendo tests de auth, autorización y auditoría).
-- **Frontend**: Landing page en `/` con SEO.
-- **Frontend**: Catálogo velado en `/catalogo` (blur CSS, sin precios).
-- **Frontend**: Catálogo privado en `/inventario` (precios, HD, filtros).
-- **Frontend**: Login en `/login` + servicio `auth.ts` con localStorage.
-- **Frontend**: Interceptor `httpClient.ts` (Bearer automático, SSR-safe, maneja 401/403).
-- **Frontend**: HeaderNav como isla de React (UI adaptativa).
-- **Frontend**: RouteGuard para proteger rutas privadas.
-- **Arquitectura**: Aplicación de SOLID (Interface Segregation: PublicObra vs Obra).
 
-### Día 2 — Cierre de Fase 1: CRUD completo + Dashboard
-- Backend: PUT /obras/{id} con FormData + CRUD técnicas + filtros + dashboard.
-- Frontend: Formulario edición, modal de eliminar, filtros con debounce, dashboard con Chart.js.
-- Navegación global.
-
-### Día 1 — MVP funcional + Tests
-- Monorepo + Docker Compose + hot reload + suite de 15 tests.
-
----
+-   *(Histórico: Ver versiones anteriores del documento)*
 
 *Fin del documento. Actualizar al cerrar cada fase.*
