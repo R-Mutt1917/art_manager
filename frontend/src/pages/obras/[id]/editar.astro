@@ -4,22 +4,61 @@ export const prerender = false;
 import Layout from '../../../layouts/Layout.astro';
 import ArtworkForm from '../../../components/ArtworkForm.tsx';
 import RouteGuard from '../../../components/RouteGuard.tsx';
-import { getObraById, getTecnica } from '../../../services/api';
 
 const { id } = Astro.params;
 const obraId = Number(id);
-const obra = await getObraById(obraId);
+
+// 1. Auth server-side: el token vive en la cookie, no en localStorage (que no existe en SSR)
+const token = Astro.cookies.get('artmanager_token')?.value;
+
+if (!token) {
+  return Astro.redirect(`/login?redirect=/obras/${obraId}/editar`);
+}
+
+// 2. Fetch interno (red Docker) con el token de la cookie
+const API_URL = import.meta.env.SSR 
+  ? import.meta.env.API_URL 
+  : import.meta.env.PUBLIC_API_URL;
+
+let obra = null;
+try {
+  const res = await fetch(`${API_URL}/obras/${obraId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (res.status === 401 || res.status === 403) {
+    return Astro.redirect('/login');
+  }
+
+  if (res.ok) {
+    obra = await res.json();
+  }
+} catch (e) {
+  console.error("Error cargando obra para edición:", e);
+}
 
 if (!obra) {
   return new Response(null, { status: 404 });
 }
 
+// 3. Resolver nombre de la técnica (endpoint público)
 let tecnicaNombre = '';
 if (obra.tecnica_id) {
-  const tecnica = await getTecnica(obra.tecnica_id);
-  tecnicaNombre = tecnica?.nombre ?? '';
+  try {
+    const resTec = await fetch(`${API_URL}/tecnicas/${obra.tecnica_id}`);
+    if (resTec.ok) {
+      const tec = await resTec.json();
+      tecnicaNombre = tec?.nombre ?? '';
+    }
+  } catch (e) {
+    console.error("Error cargando técnica:", e);
+  }
 }
 
+// 4. Datos iniciales para el formulario (incluye statement de T7-1)
 const initialData = {
   id: obra.id,
   titulo: obra.titulo,
@@ -27,7 +66,7 @@ const initialData = {
   dimensiones: obra.dimensiones,
   precio: obra.precio,
   notas: obra.notas,
-  statement: obra.statement,  // ← NUEVO
+  statement: obra.statement,
   estado: obra.estado,
   tecnica_nombre: tecnicaNombre,
   imagen_url: obra.imagen_url,
