@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,7 +9,7 @@ from sqlmodel import Session
 from app.database import engine, create_db_and_tables
 from app.models import *  # noqa: F401,F403 - registra todos los modelos
 from app.routers import obras, tecnicas, exposiciones, compradores, prestamos, dashboard, auth, audit, galerias
-from app.seed import seed_database, seed_admin_user, seed_multitenancy
+from app.seed import seed_database, seed_admin_user, seed_multitenancy, seed_dev_users
 from app.core.config import settings
 
 @asynccontextmanager
@@ -24,6 +25,10 @@ async def lifespan(app: FastAPI):
 
         # Fase 3: Multi-tenancy (una sola llamada, idempotente)
         seed_multitenancy(session)
+
+        # Fase 3 T8-1: Usuarios demo por rol (solo en development, no en tests)
+        if os.getenv("ENVIRONMENT", "development") == "development":
+            seed_dev_users(session)
 
     yield
 
@@ -57,6 +62,7 @@ app.include_router(dashboard.router)
 app.include_router(auth.router)
 app.include_router(audit.router)
 app.include_router(galerias.router)
+
 @app.get("/", tags=["Root"])
 def root():
     return {

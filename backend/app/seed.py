@@ -1,3 +1,4 @@
+import os
 from sqlmodel import Session, select
 from app.models.tecnica import Tecnica
 from app.models.galeria import Galeria
@@ -180,6 +181,44 @@ def asignar_galeria_demo_a_exposiciones(session: Session, galeria: Galeria):
 
     session.commit()
     print(f"✅ Migración: {len(exposiciones_sin_galeria)} exposiciones asignadas a Galería Demo")
+
+def seed_dev_users(session: Session):
+    """
+    Crea un usuario demo por rol para exploración manual (SOLO development).
+    Password común: demo1234
+    """
+    from app.models.usuario import Usuario, RolUsuario
+    from app.core.security import hash_password
+
+    galeria = session.exec(
+        select(Galeria).where(Galeria.slug == "galeria-demo")
+    ).first()
+    if not galeria:
+        return
+
+    dev_users = [
+        ("dueno@demo.com",   "Dueño de Galería",  RolUsuario.ADMIN),
+        ("curador@demo.com", "Curador Demo",      RolUsuario.CURADOR),
+        ("asesor@demo.com",  "Asesor Comercial",  RolUsuario.ASESOR),
+        ("viewer@demo.com",  "Visitante Interno", RolUsuario.VIEWER),
+    ]
+
+    creados = 0
+    for email, nombre, rol in dev_users:
+        existe = session.exec(select(Usuario).where(Usuario.email == email)).first()
+        if not existe:
+            session.add(Usuario(
+                email=email,
+                nombre=nombre,
+                rol=rol,
+                password_hash=hash_password("demo1234"),
+                galeria_id=galeria.id,
+            ))
+            creados += 1
+
+    if creados:
+        session.commit()
+        print(f"✅ Seed: {creados} usuarios demo por rol (password: demo1234)")
 
 def seed_multitenancy(session: Session):
     """
