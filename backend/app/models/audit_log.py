@@ -31,8 +31,8 @@ class AuditLog(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     
-    # Quién
-    usuario_id: Optional[int] = Field(default=None, foreign_key="usuario.id")
+    # Quién - ACTUALIZADO: ahora apunta a user_accounts
+    usuario_id: Optional[int] = Field(default=None, foreign_key="user_accounts.id")
     usuario_email: str = Field(max_length=255)  # denormalizado: sobrevive aunque el usuario se borre
     
     # Qué

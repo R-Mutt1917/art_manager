@@ -6,7 +6,7 @@ from sqlmodel import SQLModel, Field, Relationship
 if TYPE_CHECKING:
     from app.models.artista import Artista
     from app.models.obra import Obra
-    from app.models.usuario import Usuario
+    from app.models.usuario import UserGalleryRole
     from app.models.comprador import Comprador
     from app.models.prestamo import Prestamo
     from app.models.exposicion import Exposicion
@@ -14,8 +14,6 @@ if TYPE_CHECKING:
 class Galeria(SQLModel, table=True):
     """
     Galería de arte (tenant principal del sistema multi-tenant).
-    Cada galería tiene su espacio aislado con sus propios artistas,
-    obras, compradores, exposiciones y préstamos.
     """
     __tablename__ = "galerias"
 
@@ -41,7 +39,7 @@ class Galeria(SQLModel, table=True):
     # Relaciones
     artistas: List["Artista"] = Relationship(back_populates="galeria")
     obras: List["Obra"] = Relationship(back_populates="galeria")
-    usuarios: List["Usuario"] = Relationship(back_populates="galeria")
+    user_roles: List["UserGalleryRole"] = Relationship(back_populates="galeria") # <-- NUEVO
     compradores: List["Comprador"] = Relationship(back_populates="galeria")
     prestamos: List["Prestamo"] = Relationship(back_populates="galeria")
     exposiciones: List["Exposicion"] = Relationship(back_populates="galeria")

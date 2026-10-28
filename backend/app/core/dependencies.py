@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 
 from app.core.security import decode_token
 from app.database import get_session
-from app.models.usuario import Usuario, RolUsuario
+from app.models.usuario import UserAccount, UserGalleryRole, RolUsuario
 from app.models.galeria import Galeria
 
 security = HTTPBearer()
@@ -12,10 +12,9 @@ security = HTTPBearer()
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     session: Session = Depends(get_session),
-) -> Usuario:
+) -> UserAccount:
     """
-    Valida el Bearer token y retorna el usuario autenticado.
-    Lanza 401 si el token es inválido, expirado o el usuario no existe.
+    Valida el Bearer token y retorna la cuenta de usuario (identidad global).
     """
     try:
         payload = decode_token(credentials.credentials)
@@ -25,64 +24,69 @@ def get_current_user(
             detail="Token inválido o expirado",
         )
 
-    # Verificar que sea un access token (no refresh)
     if payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Tipo de token incorrecto",
         )
 
-    usuario_id = int(payload["sub"])
-    usuario = session.get(Usuario, usuario_id)
+    user_id = int(payload["sub"])
+    user = session.get(UserAccount, user_id)
 
-    if not usuario or not usuario.activo:
+    if not user or not user.activo:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario no válido",
+            detail="Cuenta de usuario no válida o inactiva",
         )
 
-    return usuario
-
-def require_role(*roles_permitidos: RolUsuario):
-    """
-    Factory que retorna una dependencia que verifica el rol del usuario.
-    
-    Uso:
-        @router.post("/", dependencies=[Depends(require_role(RolUsuario.ADMIN, RolUsuario.CURADOR))])
-    """
-    def role_checker(current_user: Usuario = Depends(get_current_user)) -> Usuario:
-        if current_user.rol not in roles_permitidos:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Rol requerido: {[r.value for r in roles_permitidos]}",
-            )
-        return current_user
-
-    return role_checker
+    return user
 
 def get_current_galeria(
-    usuario: Usuario = Depends(get_current_user),
+    user: UserAccount = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> Galeria:
     """
-    Devuelve la galería (tenant) del usuario autenticado.
-    
-    Es el CORAZÓN del aislamiento multi-tenant: todos los services
-    la usan para filtrar queries automáticamente por galeria_id.
-    
-    Lanza 403 si el usuario no pertenece a ninguna galería.
+    Devuelve la galería (tenant) en la que el usuario está operando actualmente.
+    Se basa en la 'galeria_id_activa' de la cuenta del usuario.
     """
-    if usuario.galeria_id is None:
+    if user.galeria_id_activa is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tu usuario no pertenece a ninguna galería. Contactá al administrador.",
+            detail="No tienes una galería activa asignada. Contactá al administrador.",
         )
     
-    galeria = session.get(Galeria, usuario.galeria_id)
+    galeria = session.get(Galeria, user.galeria_id_activa)
     if not galeria or not galeria.activo:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tu galería no está disponible. Contactá al administrador.",
+            detail="Tu galería activa no está disponible.",
         )
     
     return galeria
+
+def require_role(*roles_permitidos: RolUsuario):
+    """
+    Factory que verifica si el usuario tiene uno de los roles permitidos 
+    EN LA GALERÍA ACTIVA.
+    """
+    def role_checker(
+        user: UserAccount = Depends(get_current_user),
+        galeria: Galeria = Depends(get_current_galeria),
+        session: Session = Depends(get_session)
+    ) -> UserAccount:
+        # Buscamos si existe un registro de rol para ESTE usuario en ESTA galería
+        stmt = select(UserGalleryRole).where(
+            UserGalleryRole.user_id == user.id,
+            UserGalleryRole.galeria_id == galeria.id,
+            UserGalleryRole.rol.in_(roles_permitidos)
+        )
+        role_assignment = session.exec(stmt).first()
+        
+        if not role_assignment:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"No tienes permisos ({[r.value for r in roles_permitidos]}) en esta galería.",
+            )
+        return user
+
+    return role_checker

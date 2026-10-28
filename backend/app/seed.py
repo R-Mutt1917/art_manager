@@ -4,6 +4,8 @@ from app.models.tecnica import Tecnica
 from app.models.galeria import Galeria
 from app.models.artista import Artista
 from app.models.obra import Obra
+from app.models.usuario import UserAccount, UserGalleryRole, RolUsuario
+from app.core.security import hash_password
 
 TECNICAS_COMUNES = [
     {"nombre": "Óleo sobre lienzo", "descripcion": "Pintura al óleo tradicional"},
@@ -16,7 +18,6 @@ TECNICAS_COMUNES = [
 ]
 
 def seed_database(session: Session):
-    """Carga técnicas si no existen."""
     for tecnica_data in TECNICAS_COMUNES:
         existing = session.query(Tecnica).filter(Tecnica.nombre == tecnica_data["nombre"]).first()
         if not existing:
@@ -26,27 +27,21 @@ def seed_database(session: Session):
     print(f"✅ Seed completado: {len(TECNICAS_COMUNES)} técnicas cargadas.")
 
 def seed_admin_user(session: Session):
-    """Crea el usuario administrador inicial si no existe (solo desarrollo)."""
-    from app.models.usuario import Usuario, RolUsuario
-    from app.core.security import hash_password
-
     existente = session.exec(
-        select(Usuario).where(Usuario.email == "admin@artmanager.com")
+        select(UserAccount).where(UserAccount.email == "admin@artmanager.com")
     ).first()
 
     if not existente:
-        admin = Usuario(
+        admin = UserAccount(
             email="admin@artmanager.com",
-            nombre="Administrador",
-            rol=RolUsuario.ADMIN,
+            nombre="Super Administrador",
             password_hash=hash_password("admin123"),
         )
         session.add(admin)
         session.commit()
-        print("✅ Seed: usuario admin creado (admin@artmanager.com / admin123)")
+        print("✅ Seed: Super Admin creado (admin@artmanager.com / admin123)")
 
 def seed_galeria_demo(session: Session) -> Galeria:
-    """Crea la Galería Demo por defecto si no existe."""
     galeria = session.exec(
         select(Galeria).where(Galeria.slug == "galeria-demo")
     ).first()
@@ -68,7 +63,6 @@ def seed_galeria_demo(session: Session) -> Galeria:
     return galeria
 
 def seed_artista_demo(session: Session, galeria: Galeria) -> Artista:
-    """Crea un Artista Demo por defecto en la galería especificada."""
     artista = session.exec(
         select(Artista).where(
             Artista.galeria_id == galeria.id,
@@ -94,7 +88,6 @@ def seed_artista_demo(session: Session, galeria: Galeria) -> Artista:
     return artista
 
 def migrar_obras_a_galeria_demo(session: Session, galeria: Galeria, artista: Artista):
-    """Migra todas las obras sin galeria_id a la Galería Demo."""
     obras_sin_galeria = session.exec(
         select(Obra).where(Obra.galeria_id == None)
     ).all()
@@ -110,92 +103,18 @@ def migrar_obras_a_galeria_demo(session: Session, galeria: Galeria, artista: Art
     session.commit()
     print(f"✅ Migración: {len(obras_sin_galeria)} obras asignadas a Galería Demo")
 
-def asignar_galeria_demo_a_usuarios(session: Session, galeria: Galeria):
-    """Asigna la Galería Demo a todos los usuarios sin galeria_id."""
-    from app.models.usuario import Usuario
-
-    usuarios_sin_galeria = session.exec(
-        select(Usuario).where(Usuario.galeria_id == None)
-    ).all()
-
-    if not usuarios_sin_galeria:
-        return
-
-    for usuario in usuarios_sin_galeria:
-        usuario.galeria_id = galeria.id
-        session.add(usuario)
-
-    session.commit()
-    print(f"✅ Migración: {len(usuarios_sin_galeria)} usuarios asignados a Galería Demo")
-
-def asignar_galeria_demo_a_compradores(session: Session, galeria: Galeria):
-    """Asigna Galería Demo a compradores sin galeria_id."""
-    from app.models.comprador import Comprador
-
-    compradores_sin_galeria = session.exec(
-        select(Comprador).where(Comprador.galeria_id == None)
-    ).all()
-
-    if not compradores_sin_galeria:
-        return
-
-    for comprador in compradores_sin_galeria:
-        comprador.galeria_id = galeria.id
-        session.add(comprador)
-
-    session.commit()
-    print(f"✅ Migración: {len(compradores_sin_galeria)} compradores asignados a Galería Demo")
-
-def asignar_galeria_demo_a_prestamos(session: Session, galeria: Galeria):
-    """Asigna Galería Demo a préstamos sin galeria_id."""
-    from app.models.prestamo import Prestamo
-
-    prestamos_sin_galeria = session.exec(
-        select(Prestamo).where(Prestamo.galeria_id == None)
-    ).all()
-
-    if not prestamos_sin_galeria:
-        return
-
-    for prestamo in prestamos_sin_galeria:
-        prestamo.galeria_id = galeria.id
-        session.add(prestamo)
-
-    session.commit()
-    print(f"✅ Migración: {len(prestamos_sin_galeria)} préstamos asignados a Galería Demo")
-
-def asignar_galeria_demo_a_exposiciones(session: Session, galeria: Galeria):
-    """Asigna Galería Demo a exposiciones sin galeria_id."""
-    from app.models.exposicion import Exposicion
-
-    exposiciones_sin_galeria = session.exec(
-        select(Exposicion).where(Exposicion.galeria_id == None)
-    ).all()
-
-    if not exposiciones_sin_galeria:
-        return
-
-    for exposicion in exposiciones_sin_galeria:
-        exposicion.galeria_id = galeria.id
-        session.add(exposicion)
-
-    session.commit()
-    print(f"✅ Migración: {len(exposiciones_sin_galeria)} exposiciones asignadas a Galería Demo")
-
 def seed_dev_users(session: Session):
     """
-    Crea un usuario demo por rol para exploración manual (SOLO development).
+    Crea cuentas de usuario y les asigna roles específicos en la Galería Demo.
     Password común: demo1234
     """
-    from app.models.usuario import Usuario, RolUsuario
-    from app.core.security import hash_password
-
     galeria = session.exec(
         select(Galeria).where(Galeria.slug == "galeria-demo")
     ).first()
     if not galeria:
         return
 
+    # Definimos las cuentas y el rol que tendrán en ESTA galería
     dev_users = [
         ("dueno@demo.com",   "Dueño de Galería",  RolUsuario.ADMIN),
         ("curador@demo.com", "Curador Demo",      RolUsuario.CURADOR),
@@ -205,33 +124,33 @@ def seed_dev_users(session: Session):
 
     creados = 0
     for email, nombre, rol in dev_users:
-        existe = session.exec(select(Usuario).where(Usuario.email == email)).first()
-        if not existe:
-            session.add(Usuario(
+        # 1. Crear o buscar la identidad global (UserAccount)
+        user = session.exec(select(UserAccount).where(UserAccount.email == email)).first()
+        if not user:
+            user = UserAccount(
                 email=email,
                 nombre=nombre,
-                rol=rol,
                 password_hash=hash_password("demo1234"),
+                galeria_id_activa=galeria.id, # Por defecto, trabajan en la demo
+            )
+            session.add(user)
+            session.flush() # Para obtener el user.id
+            
+            # 2. Asignar el rol específico para esta galería
+            session.add(UserGalleryRole(
+                user_id=user.id,
                 galeria_id=galeria.id,
+                rol=rol
             ))
             creados += 1
 
     if creados:
         session.commit()
-        print(f"✅ Seed: {creados} usuarios demo por rol (password: demo1234)")
+        print(f"✅ Seed: {creados} cuentas de usuario con roles asignados en Galería Demo (pass: demo1234)")
 
 def seed_multitenancy(session: Session):
-    """
-    Seed completo de multi-tenancy en UN solo lugar.
-    Idempotente: se puede llamar en cada arranque sin efectos secundarios.
-
-    Lo usan tanto main.py (producción) como conftest.py (tests),
-    evitando que se desincronicen.
-    """
     galeria = seed_galeria_demo(session)
     artista = seed_artista_demo(session, galeria)
     migrar_obras_a_galeria_demo(session, galeria, artista)
-    asignar_galeria_demo_a_usuarios(session, galeria)
-    asignar_galeria_demo_a_compradores(session, galeria)
-    asignar_galeria_demo_a_prestamos(session, galeria)
-    asignar_galeria_demo_a_exposiciones(session, galeria)
+    # Nota: Ya no necesitamos "asignar_galeria_demo_a_usuarios" masivo, 
+    # porque seed_dev_users lo hace de forma granular con UserGalleryRole.
