@@ -35,7 +35,7 @@ const { title, description = "Gestor de Obras de Arte profesional" } = Astro.pro
           Esto permite que el menú cambie dinámicamente al hacer login/logout 
           sin recargar la página.
         -->
-        <HeaderNav client:load />
+        <HeaderNav client:only="react" />
       </div>
     </header>
 
