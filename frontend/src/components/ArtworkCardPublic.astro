@@ -1,6 +1,7 @@
 ---
-// Tarjeta de obra para catálogo público con imagen borrosa.
-// El blur CSS genera curiosidad y protege visualmente la obra.
+// Tarjeta de obra para catálogo público.
+// Muestra: imagen (con blur), título, año, técnica, estado y statement (memoria conceptual).
+// NUNCA muestra: precio, notas internas, comprador.
 
 interface Props {
   obra: {
@@ -9,6 +10,7 @@ interface Props {
     anio: number;
     estado: string;
     imagen_url: string | null;
+    statement: string | null;
   };
   tecnicaNombre?: string;
 }
@@ -17,19 +19,16 @@ const { obra, tecnicaNombre = 'Técnica no especificada' } = Astro.props;
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
 
-// Traducir estado a texto legible
 const estadoLegible = obra.estado === 'disponible' ? 'Disponible' 
   : obra.estado === 'vendida' ? 'Vendida' 
   : obra.estado === 'en_exposicion' ? 'En exposición' 
   : 'En préstamo';
 
-// URL de la imagen (o null si no hay)
 const imagenSrc = obra.imagen_url ? `${API_URL}${obra.imagen_url}` : null;
 ---
 
 <a href="/login" class="group block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100">
   
-  <!-- Imagen con blur CSS -->
   <figure class="aspect-[4/3] relative overflow-hidden bg-gray-100">
     {imagenSrc ? (
       <img
@@ -46,7 +45,6 @@ const imagenSrc = obra.imagen_url ? `${API_URL}${obra.imagen_url}` : null;
       </div>
     )}
     
-    <!-- Overlay con mensaje -->
     <div class="absolute inset-0 flex items-center justify-center bg-black/10">
       <span class="text-xs text-white bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm font-medium">
         Inicia sesión para ver la imagen completa
@@ -58,8 +56,15 @@ const imagenSrc = obra.imagen_url ? `${API_URL}${obra.imagen_url}` : null;
     <h3 class="font-serif text-lg font-bold text-text-primary mb-2 group-hover:text-accent transition-colors">
       {obra.titulo}
     </h3>
-    <p class="text-sm text-text-secondary mb-3">{obra.anio}</p>
-    <p class="text-xs text-text-secondary mb-2">Técnica: {tecnicaNombre}</p>
+    <p class="text-sm text-text-secondary mb-2">{obra.anio} · {tecnicaNombre}</p>
+
+    /* ← NUEVO: memoria conceptual pública (3 líneas máximo) */
+    {obra.statement && (
+      <p class="text-sm text-text-secondary italic border-l-2 border-accent/40 pl-3 mb-3 line-clamp-3">
+        "{obra.statement}"
+      </p>
+    )}
+
     <div class="flex items-center justify-between pt-3 border-t border-gray-100">
       <span class="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-text-secondary">
         {estadoLegible}
