@@ -105,16 +105,42 @@ def migrar_obras_a_galeria_demo(session: Session, galeria: Galeria, artista: Art
 
 def seed_dev_users(session: Session):
     """
-    Crea cuentas de usuario y les asigna roles específicos en la Galería Demo.
+    Crea cuentas demo con roles por galería (SOLO development).
+    Además vincula al super admin a la Galería Demo para que pueda operar.
     Password común: demo1234
     """
+    from app.models.usuario import UserAccount, UserGalleryRole, RolUsuario
+    from app.core.security import hash_password
+
     galeria = session.exec(
         select(Galeria).where(Galeria.slug == "galeria-demo")
     ).first()
     if not galeria:
         return
 
-    # Definimos las cuentas y el rol que tendrán en ESTA galería
+    # ← NUEVO: el super admin necesita galería activa + rol para poder operar
+    super_admin = session.exec(
+        select(UserAccount).where(UserAccount.email == "admin@artmanager.com")
+    ).first()
+    if super_admin:
+        if super_admin.galeria_id_activa is None:
+            super_admin.galeria_id_activa = galeria.id
+            session.add(super_admin)
+        tiene_rol = session.exec(
+            select(UserGalleryRole).where(
+                UserGalleryRole.user_id == super_admin.id,
+                UserGalleryRole.galeria_id == galeria.id,
+            )
+        ).first()
+        if not tiene_rol:
+            session.add(UserGalleryRole(
+                user_id=super_admin.id,
+                galeria_id=galeria.id,
+                rol=RolUsuario.ADMIN,
+            ))
+        session.commit()
+        print("✅ Seed: super admin vinculado a Galería Demo (rol ADMIN)")
+
     dev_users = [
         ("dueno@demo.com",   "Dueño de Galería",  RolUsuario.ADMIN),
         ("curador@demo.com", "Curador Demo",      RolUsuario.CURADOR),
@@ -124,19 +150,16 @@ def seed_dev_users(session: Session):
 
     creados = 0
     for email, nombre, rol in dev_users:
-        # 1. Crear o buscar la identidad global (UserAccount)
         user = session.exec(select(UserAccount).where(UserAccount.email == email)).first()
         if not user:
             user = UserAccount(
                 email=email,
                 nombre=nombre,
                 password_hash=hash_password("demo1234"),
-                galeria_id_activa=galeria.id, # Por defecto, trabajan en la demo
+                galeria_id_activa=galeria.id,
             )
             session.add(user)
-            session.flush() # Para obtener el user.id
-            
-            # 2. Asignar el rol específico para esta galería
+            session.flush()
             session.add(UserGalleryRole(
                 user_id=user.id,
                 galeria_id=galeria.id,

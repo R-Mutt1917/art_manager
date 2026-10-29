@@ -11,7 +11,7 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
 )
-from app.models.usuario import Usuario, RolUsuario
+from app.models.usuario import Usuario, UserGalleryRole, RolUsuario
 from app.models.audit_log import TipoEvento
 from app.schemas.auth import LoginRequest
 from app.schemas.usuario import UsuarioCreate
@@ -22,6 +22,23 @@ class AuthService:
     def __init__(self, session: Session):
         self.session = session
         self.audit = AuditService(session)
+
+    def rol_efectivo(self, usuario: Usuario) -> str:
+        """
+        Devuelve el rol REAL del usuario en su galería activa (UserGalleryRole).
+        Esta es la ÚNICA fuente de verdad de permisos desde el refactor T9.
+        Si por alguna razón no tiene rol en esa galería, cae al rol legacy.
+        """
+        if usuario.galeria_id_activa is not None:
+            rol = self.session.exec(
+                select(UserGalleryRole.rol).where(
+                    UserGalleryRole.user_id == usuario.id,
+                    UserGalleryRole.galeria_id == usuario.galeria_id_activa,
+                )
+            ).first()
+            if rol is not None:
+                return rol.value if hasattr(rol, "value") else str(rol)
+        return usuario.rol.value
 
     def registrar(self, data: UsuarioCreate, request: Optional[Request] = None) -> Usuario:
         existente = self.session.exec(
@@ -40,7 +57,6 @@ class AuthService:
         self.session.commit()
         self.session.refresh(usuario)
 
-        # Auditoría: nuevo registro
         self.audit.registrar(
             tipo_evento=TipoEvento.REGISTRO,
             usuario_id=usuario.id,
@@ -60,7 +76,6 @@ class AuthService:
         ).first()
 
         if not usuario or not verify_password(data.password, usuario.password_hash):
-            # Auditoría: intento fallido (clave para detectar ataques de fuerza bruta)
             self.audit.registrar(
                 tipo_evento=TipoEvento.LOGIN_FALLIDO,
                 usuario_id=usuario.id if usuario else None,
@@ -77,7 +92,6 @@ class AuthService:
         usuario.ultimo_login = datetime.utcnow()
         self.session.add(usuario)
 
-        # Auditoría: login exitoso
         self.audit.registrar(
             tipo_evento=TipoEvento.LOGIN_EXITOSO,
             usuario_id=usuario.id,
@@ -87,9 +101,12 @@ class AuthService:
         )
         self.session.commit()
 
+        # ← FIX T9: el token lleva el rol EFECTIVO (UserGalleryRole), no el legacy
+        rol = self.rol_efectivo(usuario)
+
         return {
-            "access_token": create_access_token(usuario.id, usuario.rol.value),
-            "refresh_token": create_refresh_token(usuario.id, usuario.rol.value),
+            "access_token": create_access_token(usuario.id, rol),
+            "refresh_token": create_refresh_token(usuario.id, rol),
             "token_type": "bearer",
         }
 
@@ -106,8 +123,11 @@ class AuthService:
         if not usuario or not usuario.activo:
             raise HTTPException(status_code=401, detail="Usuario no válido")
 
+        # ← FIX T9: también al refrescar
+        rol = self.rol_efectivo(usuario)
+
         return {
-            "access_token": create_access_token(usuario.id, usuario.rol.value),
-            "refresh_token": create_refresh_token(usuario.id, usuario.rol.value),
+            "access_token": create_access_token(usuario.id, rol),
+            "refresh_token": create_refresh_token(usuario.id, rol),
             "token_type": "bearer",
         }

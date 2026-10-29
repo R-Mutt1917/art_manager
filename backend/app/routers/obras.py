@@ -117,28 +117,29 @@ def listar_obras(
 def listar_obras_publicas(
     estado: Optional[EstadoObra] = Query(None, description="Filtrar por estado"),
     tecnica_id: Optional[int] = Query(None, description="Filtrar por ID de técnica"),
-    busqueda: Optional[str] = Query(None, description="Buscar en título"),
+    busqueda: Optional[str] = Query(None, description="Buscar en título o statement"),
     session: Session = Depends(get_session),
 ):
     """
-    Catálogo público velado (no requiere auth, ve todas las galerías).
-    Muestra datos básicos + imagen con blur.
+    Catálogo público velado (no requiere auth).
+    Expone: datos básicos + statement (memoria conceptual).
+    NUNCA expone: precio, notas internas, comprador.
     """
-    # Query sin filtro de galería (público ve todo)
     query = select(Obra).where(Obra.activo == True)
-    
+
     if estado:
         query = query.where(Obra.estado == estado)
     if tecnica_id:
         query = query.where(Obra.tecnica_id == tecnica_id)
     if busqueda:
         termino = f"%{busqueda.lower()}%"
+        # ← FIX: busca en titulo y statement (públicos), NO en notas (internas)
         query = query.where(
-            (Obra.titulo.ilike(termino)) | (Obra.notas.ilike(termino))
+            (Obra.titulo.ilike(termino)) | (Obra.statement.ilike(termino))
         )
-    
+
     obras = session.exec(query).all()
-    
+
     obras_publicas = []
     for obra in obras:
         obras_publicas.append({
@@ -148,8 +149,9 @@ def listar_obras_publicas(
             "tecnica_id": obra.tecnica_id,
             "estado": obra.estado.value if hasattr(obra.estado, 'value') else str(obra.estado),
             "imagen_url": obra.imagen_url,
+            "statement": obra.statement,   # ← memoria conceptual pública
         })
-    
+
     return obras_publicas
 
 @router.get("/{obra_id}", response_model=ObraRead)
