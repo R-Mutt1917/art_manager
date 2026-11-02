@@ -234,6 +234,7 @@ export default function InventarioClient() {
 function ObraCard({ obra }: { obra: Obra }) {
   const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
   const imagenSrc = obra.imagen_url ? `${API_URL}${obra.imagen_url}` : null;
+  const [imgError, setImgError] = useState(false);
 
   const estadoLegible = {
     disponible: 'Disponible',
@@ -247,12 +248,13 @@ function ObraCard({ obra }: { obra: Obra }) {
       href={`/obras/${obra.id}`}
       className="group block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100"
     >
-      {imagenSrc ? (
+      {imagenSrc && !imgError ? (
         <img
           src={imagenSrc}
           alt={obra.titulo}
           className="w-full aspect-[4/3] object-cover"
           loading="lazy"
+          onError={() => setImgError(true)}
         />
       ) : (
         <div className="w-full aspect-[4/3] bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
