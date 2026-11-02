@@ -58,7 +58,7 @@ const imagenSrc = obra.imagen_url ? `${API_URL}${obra.imagen_url}` : null;
     </h3>
     <p class="text-sm text-text-secondary mb-2">{obra.anio} · {tecnicaNombre}</p>
 
-    /* ← NUEVO: memoria conceptual pública (3 líneas máximo) */
+    <!-- Memoria conceptual pública (3 líneas máximo) -->
     {obra.statement && (
       <p class="text-sm text-text-secondary italic border-l-2 border-accent/40 pl-3 mb-3 line-clamp-3">
         "{obra.statement}"

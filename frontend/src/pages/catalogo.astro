@@ -1,13 +1,13 @@
 ---
-// Catálogo público: muestra obras con datos velados (sin precios, imágenes borrosas).
-
+// Catálogo público: obras veladas (sin precios, con statement).
 import Layout from '../layouts/Layout.astro';
 import ArtworkCardPublic from '../components/ArtworkCardPublic.astro';
-import type { PublicObra, PublicTecnica } from '../services/publicApi';
+import { apiPublic } from '../services/apiPublic';
+import type { PublicObra, PublicTecnica } from '../services/apiPublic';
 
 export const prerender = false;
 
-// 1. Leer query params de la URL para filtros
+// 1. Query params de la URL
 const url = new URL(Astro.request.url);
 const queryParams = {
   tecnica: url.searchParams.get('tecnica'),
@@ -15,41 +15,15 @@ const queryParams = {
   busqueda: url.searchParams.get('busqueda'),
 };
 
-// 2. Construir URL con query params para el backend
-const API_URL = import.meta.env.API_URL || 'http://localhost:8000';
-const params = new URLSearchParams();
-Object.entries(queryParams).forEach(([key, value]) => {
-  if (value) params.set(key, value);
-});
+// 2. Fetch SSR vía servicio único (mapea tecnica -> tecnica_id que es lo que espera el backend)
+const obras: PublicObra[] = (await apiPublic.getObrasPublicas({
+  tecnica_id: queryParams.tecnica,
+  estado: queryParams.estado,
+  busqueda: queryParams.busqueda,
+})) ?? [];
 
-const apiUrl = params.toString()
-  ? `${API_URL}/obras/publicas/?${params.toString()}`
-  : `${API_URL}/obras/publicas/`;
-
-// 3. Fetch de obras públicas (SSR)
-let obras: PublicObra[] = [];
-try {
-  const response = await fetch(apiUrl);
-  if (response.ok) {
-    obras = await response.json();
-  }
-} catch (error) {
-  console.error('Error al obtener obras públicas:', error);
-}
-
-// 4. Fetch de técnicas (para mostrar nombres en las tarjetas)
-let tecnicas: PublicTecnica[] = [];
-try {
-  const response = await fetch(`${API_URL}/tecnicas/`);
-  if (response.ok) {
-    tecnicas = await response.json();
-  }
-} catch (error) {
-  console.error('Error al obtener técnicas:', error);
-}
-
-// Crear mapa de técnicas (id -> nombre) para lookup rápido
-const tecnicasMap = new Map(tecnicas.map((t: PublicTecnica) => [t.id, t.nombre]));
+const tecnicas: PublicTecnica[] = (await apiPublic.getTecnicasPublicas()) ?? [];
+const tecnicasMap = new Map(tecnicas.map((t) => [t.id, t.nombre]));
 
 const hayFiltros = Object.values(queryParams).some((v) => v);
 ---

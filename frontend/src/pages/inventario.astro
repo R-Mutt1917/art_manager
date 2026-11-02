@@ -4,13 +4,11 @@ import InventarioClient from '../components/InventarioClient.tsx';
 import RouteGuard from '../components/RouteGuard.tsx';
 
 export const prerender = false;
+
+// Gate SSR: solo ADMIN, CURADOR y ASESOR entran. VIEWER es redirigido al catálogo.
 ---
 
 <Layout title="Inventario de Obras" description="Gestión completa de tu colección de arte">
-  <!-- 
-    RouteGuard: componente invisible que redirige a /login si no hay token.
-    client:only="react" garantiza que solo se ejecute en el navegador (no SSR).
-  -->
   <RouteGuard client:only="react" />
   
   <div class="mb-8">
