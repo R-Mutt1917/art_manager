@@ -11,7 +11,7 @@ interface ArtworkFormProps {
     dimensiones: string;
     precio: number | null;
     notas: string | null;
-    statement: string | null;  // ← NUEVO
+    statement: string | null;
     estado: string;
     tecnica_nombre: string;
     imagen_url: string | null;
@@ -37,7 +37,7 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
     dimensiones: initialData?.dimensiones ?? '',
     precio: initialData?.precio?.toString() ?? '',
     notas: initialData?.notas ?? '',
-    statement: initialData?.statement ?? '',  // ← NUEVO
+    statement: initialData?.statement ?? '',
   });
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
       data.append('dimensiones', formData.dimensiones);
       if (formData.precio) data.append('precio', formData.precio);
       if (formData.notas) data.append('notas', formData.notas);
-      if (formData.statement) data.append('statement', formData.statement);  // ← NUEVO
+      if (formData.statement) data.append('statement', formData.statement);
       data.append('tecnica', tecnicaInput);
       if (imagen) data.append('imagen', imagen);
 
@@ -83,20 +83,12 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
 
       setSuccess(true);
 
-      if (isEditMode) {
-        setTimeout(() => { window.location.href = `/obras/${response.id}`; }, 1000);
-      } else {
-        setFormData({ 
-          titulo: '', 
-          anio: new Date().getFullYear().toString(), 
-          dimensiones: '', 
-          precio: '', 
-          notas: '',
-          statement: '',  // ← NUEVO
-        });
-        setTecnicaInput('');
-        setImagen(null);
-      }
+      // ← FIX CRÍTICO: AMBOS modos redirigen al detalle
+      // Esto asegura que después de crear una obra, el usuario vea el resultado
+      setTimeout(() => {
+        window.location.href = `/obras/${response.id}`;
+      }, 1000);
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -125,8 +117,7 @@ export default function ArtworkForm({ initialData }: ArtworkFormProps) {
 
       {success && (
         <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200 text-sm" role="status">
-          {isEditMode ? '✓ Obra actualizada. Redirigiendo...' : '✓ Obra creada exitosamente.'}
-          {!isEditMode && <a href="/" className="underline font-semibold ml-2">Volver al catálogo</a>}
+          {isEditMode ? '✓ Obra actualizada. Redirigiendo...' : '✓ Obra creada exitosamente. Redirigiendo al detalle...'}
         </div>
       )}
 

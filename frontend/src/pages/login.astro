@@ -130,8 +130,18 @@ export const prerender = false;
           // Llamada real al backend
           await login(email, password);
           
-          // Éxito: redirección al catálogo
-          window.location.href = '/';
+          // ← FIX: redirección inteligente
+          // 1. Si hay ?returnTo= en la URL, respetarlo (si es ruta interna)
+          // 2. Si no, ir a /inventario por defecto (no a / que es la landing pública)
+          const urlParams = new URLSearchParams(window.location.search);
+          const returnTo = urlParams.get('returnTo');
+          
+          // Validar que returnTo sea una ruta relativa (seguridad: evitar open redirect)
+          const safeRedirect = returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+            ? returnTo
+            : '/inventario';
+          
+          window.location.href = safeRedirect;
         } catch (error) {
           // Error: mostrar mensaje y reactivar botón
           errorMsg.textContent = error instanceof Error ? error.message : 'Error de conexión';
