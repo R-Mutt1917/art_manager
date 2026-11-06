@@ -8,36 +8,35 @@ if TYPE_CHECKING:
     from app.models.galeria import Galeria
 
 class RolUsuario(str, Enum):
-    """Roles del sistema (matriz de permisos)."""
-    ADMIN = "admin"        # Dueño/Admin de la galería
-    CURADOR = "curador"    # CRUD obras + exposiciones
-    ASESOR = "asesor"      # Ver inventario + registrar ventas
-    ARTISTA = "artista"    # Sus obras y sus ventas
-    VIEWER = "viewer"      # Solo lectura
+    """Roles del sistema (matriz de permisos por galería)."""
+    ADMIN = "admin"
+    CURADOR = "curador"
+    ASESOR = "asesor"
+    ARTISTA = "artista"
+    VIEWER = "viewer"
 
 class UsuarioBase(SQLModel):
     """
-    Base para schemas (mantiene compatibilidad con app/schemas/usuario.py).
-    El campo 'rol' se usa aquí solo para la interfaz de creación, 
-    pero la lógica real de permisos vive en UserGalleryRole.
+    Base compartida para schemas.
+    NOTA: NO incluye 'rol' — los roles se definen por galería en UserGalleryRole.
     """
     email: str = Field(index=True, unique=True, max_length=255)
     nombre: str = Field(max_length=100)
-    rol: RolUsuario = Field(default=RolUsuario.VIEWER)
 
 class UserAccount(UsuarioBase, table=True):
     """
-    Identidad global del usuario. 
+    Identidad global del usuario.
     Un solo email = una sola cuenta, sin importar en cuántas galerías participe.
+    Los roles del usuario viven en UserGalleryRole (relación muchos-a-muchos con Galeria).
     """
     __tablename__ = "user_accounts"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    password_hash: str                      # NUNCA guardar password en claro
+    password_hash: str
     activo: bool = Field(default=True)
     fecha_creacion: datetime = Field(default_factory=datetime.utcnow)
     ultimo_login: Optional[datetime] = None
-    
+
     # Galería en la que el usuario está trabajando actualmente (contexto de sesión)
     galeria_id_activa: Optional[int] = Field(default=None, foreign_key="galerias.id", index=True)
 
@@ -50,6 +49,7 @@ class UserAccount(UsuarioBase, table=True):
 class UserGalleryRole(SQLModel, table=True):
     """
     Tabla intermedia: Define qué rol tiene un UserAccount en una Galería específica.
+    Esta es la ÚNICA fuente de verdad de permisos del sistema.
     """
     __tablename__ = "user_galeria_roles"
 
@@ -63,5 +63,5 @@ class UserGalleryRole(SQLModel, table=True):
     user: "UserAccount" = Relationship(back_populates="galeria_roles")
     galeria: "Galeria" = Relationship(back_populates="user_roles")
 
-# Alias para mantener compatibilidad con imports antiguos (ej: from app.models.usuario import Usuario)
+# Alias de compatibilidad
 Usuario = UserAccount
