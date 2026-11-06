@@ -14,8 +14,14 @@ from app.schemas.public import (
     ArtistaDetallePublicRead,
     ObraPublicRead,
 )
+from app.schemas.galeria import GaleriaRegisterRequest, GaleriaRegisterResponse
+from app.services.galeria_service import GaleriaService
 
-router = APIRouter(prefix="/galerias", tags=["Galerías (público)"])
+router = APIRouter(prefix="/galerias", tags=["Galerías"])
+
+# ==========================================
+# HELPERS PRIVADOS
+# ==========================================
 
 def _obtener_galeria_activa_o_404(session: Session, slug: str) -> Galeria:
     """Resuelve la galería por slug. 404 si no existe o está inactiva."""
@@ -53,10 +59,45 @@ def _obras_publicas_del_artista(session: Session, artista_id: int) -> List[ObraP
                 estado=obra.estado.value if hasattr(obra.estado, "value") else str(obra.estado),
                 imagen_url=obra.imagen_url,
                 tecnica_nombre=tecnica_nombre,
-                statement=obra.statement,  # ← DEBE EXISTIR ESTA LÍNEA
+                statement=obra.statement,
             )
         )
     return resultado
+
+# ==========================================
+# REGISTRO SELF-SERVICE (PÚBLICO)
+# IMPORTANTE: este endpoint debe ir ANTES de /{slug}
+# para que FastAPI no confunda "register" con un slug
+# ==========================================
+@router.post("/register", response_model=GaleriaRegisterResponse, status_code=201)
+def registrar_galeria(
+    data: GaleriaRegisterRequest,
+    session: Session = Depends(get_session),
+):
+    """
+    Registro público: crea una galería + su dueño (ADMIN) en una sola operación.
+    
+    Devuelve tokens de acceso para autologin inmediato.
+    No requiere autenticación (es el punto de entrada de nuevas galerías).
+    
+    Flujo:
+    1. Valida email único + slug único
+    2. Crea UserAccount (sin rol global)
+    3. Crea Galeria con slug derivado del nombre
+    4. Asigna UserGalleryRole.ADMIN al dueño en la nueva galería
+    5. Setea galeria_id_activa
+    6. Genera tokens JWT
+    """
+    service = GaleriaService(session)
+    return service.registrar_galeria(
+        nombre_galeria=data.nombre_galeria,
+        email_dueno=data.email_dueno,
+        nombre_dueno=data.nombre_dueno,
+        password_dueno=data.password_dueno,
+        bio_galeria=data.bio_galeria,
+        ubicacion_galeria=data.ubicacion_galeria,
+        sitio_web_galeria=data.sitio_web_galeria,
+    )
 
 # ==========================================
 # PERFIL PÚBLICO DE GALERÍA

@@ -1,0 +1,226 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+export const prerender = false;
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+---
+
+<Layout title="Registrar mi Galería" description="Crea tu cuenta de galería en Art Manager">
+  <div class="min-h-[70vh] flex items-center justify-center px-4 py-12">
+    <div class="w-full max-w-2xl">
+      
+      <div class="text-center mb-8">
+        <h1 class="font-serif text-4xl font-bold text-text-primary mb-2">
+          Registrar mi Galería
+        </h1>
+        <p class="text-text-secondary">
+          Crea tu cuenta profesional en menos de 2 minutos
+        </p>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+        
+        <div id="error-message" class="hidden mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200" role="alert"></div>
+        <div id="success-message" class="hidden mb-4 p-3 bg-green-50 text-green-700 text-sm rounded-lg border border-green-200" role="status"></div>
+
+        <form id="register-form" class="space-y-6" novalidate>
+          
+          <fieldset class="border border-gray-200 rounded-lg p-6">
+            <legend class="text-lg font-semibold text-text-primary px-2">Datos de la Galería</legend>
+            
+            <div class="space-y-4 mt-4">
+              <div>
+                <label for="nombre_galeria" class="block text-sm font-medium text-text-secondary mb-2">
+                  Nombre de la Galería *
+                </label>
+                <input
+                  type="text"
+                  id="nombre_galeria"
+                  name="nombre_galeria"
+                  required
+                  placeholder="Galería Arte Contemporáneo"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label for="bio_galeria" class="block text-sm font-medium text-text-secondary mb-2">
+                  Descripción (opcional)
+                </label>
+                <textarea
+                  id="bio_galeria"
+                  name="bio_galeria"
+                  rows="3"
+                  placeholder="Contanos sobre tu galería..."
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition resize-none"
+                ></textarea>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label for="ubicacion_galeria" class="block text-sm font-medium text-text-secondary mb-2">
+                    Ubicación (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    id="ubicacion_galeria"
+                    name="ubicacion_galeria"
+                    placeholder="Buenos Aires, Argentina"
+                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+                  />
+                </div>
+
+                <div>
+                  <label for="sitio_web_galeria" class="block text-sm font-medium text-text-secondary mb-2">
+                    Sitio Web (opcional)
+                  </label>
+                  <input
+                    type="url"
+                    id="sitio_web_galeria"
+                    name="sitio_web_galeria"
+                    placeholder="https://..."
+                    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+                  />
+                </div>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="border border-gray-200 rounded-lg p-6">
+            <legend class="text-lg font-semibold text-text-primary px-2">Datos del Dueño</legend>
+            
+            <div class="space-y-4 mt-4">
+              <div>
+                <label for="nombre_dueno" class="block text-sm font-medium text-text-secondary mb-2">
+                  Tu Nombre Completo *
+                </label>
+                <input
+                  type="text"
+                  id="nombre_dueno"
+                  name="nombre_dueno"
+                  required
+                  placeholder="Juan Pérez"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label for="email_dueno" class="block text-sm font-medium text-text-secondary mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  id="email_dueno"
+                  name="email_dueno"
+                  required
+                  autocomplete="email"
+                  placeholder="juan@galeria.com"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label for="password_dueno" class="block text-sm font-medium text-text-secondary mb-2">
+                  Contraseña * (mínimo 8 caracteres)
+                </label>
+                <input
+                  type="password"
+                  id="password_dueno"
+                  name="password_dueno"
+                  required
+                  minlength="8"
+                  autocomplete="new-password"
+                  placeholder="••••••••"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none transition"
+                />
+              </div>
+            </div>
+          </fieldset>
+
+          <button
+            type="submit"
+            id="submit-btn"
+            class="w-full py-3 bg-text-primary text-white font-semibold rounded-lg hover:bg-accent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50"
+          >
+            Registrar mi Galería
+          </button>
+        </form>
+
+        <p class="text-center text-sm text-text-secondary mt-6">
+          ¿Ya tenés cuenta? 
+          <a href="/login" class="text-accent hover:underline font-medium">
+            Iniciar sesión
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('register-form');
+      const errorMsg = document.getElementById('error-message');
+      const successMsg = document.getElementById('success-message');
+      const submitBtn = document.getElementById('submit-btn');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const data = {
+          nombre_galeria: formData.get('nombre_galeria'),
+          bio_galeria: formData.get('bio_galeria') || null,
+          ubicacion_galeria: formData.get('ubicacion_galeria') || null,
+          sitio_web_galeria: formData.get('sitio_web_galeria') || null,
+          nombre_dueno: formData.get('nombre_dueno'),
+          email_dueno: formData.get('email_dueno'),
+          password_dueno: formData.get('password_dueno'),
+        };
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Registrando...';
+        errorMsg.classList.add('hidden');
+        successMsg.classList.add('hidden');
+
+        try {
+          const response = await fetch(`${API_URL}/galerias/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error al registrar');
+          }
+
+          const result = await response.json();
+
+          // Guardar tokens en localStorage (igual que el login)
+          localStorage.setItem('artmanager_access_token', result.access_token);
+          localStorage.setItem('artmanager_refresh_token', result.refresh_token);
+
+          // También guardar en cookie para SSR (para que el middleware proteja rutas)
+          document.cookie = `artmanager_token=${result.access_token}; path=/; max-age=604800`;
+
+          successMsg.textContent = `✓ Galería "${result.galeria_nombre}" registrada. Redirigiendo...`;
+          successMsg.classList.remove('hidden');
+
+          // Redirigir al inventario después de 1.5s
+          setTimeout(() => {
+            window.location.href = '/inventario';
+          }, 1500);
+
+        } catch (error) {
+          errorMsg.textContent = error instanceof Error ? error.message : 'Error de conexión';
+          errorMsg.classList.remove('hidden');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Registrar mi Galería';
+        }
+      });
+    });
+  </script>
+</Layout>
